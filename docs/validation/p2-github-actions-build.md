@@ -29,6 +29,8 @@ mode       = preflight
 
 Gerrit 源码只浅抓取请求的一个 ref，并设置 20 分钟连接/传输上限；预检不下载 monorepo 的完整历史。失败时保留配置与元数据，先修复连接或 ref，再开始完整构建。
 
+若 native 配置失败，工作流会将 `engine/config.log` 中与错误相关的脱敏片段及末尾写入 Job Summary，同时保留完整日志 Artifact；无需把 GitHub Token 发到聊天中即可定位依赖问题。
+
 如果构建机只有 Git SSH 权限、没有 GitHub API Token，也可显式推送名为 `collabora-preflight-*` 的标签；它只会以 `refs/heads/main` 执行同样的预检。普通 `main` 提交不会触发它。这个标签入口只适用于预检，完整构建仍必须通过手动工作流输入固定 SHA。
 
 如果 Gerrit 的 `main` 路径变化，请在下一次预检中填写其实际 ref；不要退回只含 Android 壳的 GitHub 镜像，也不要为了方便固定一个未在 Gerrit 验证过的 GitHub commit。

@@ -116,6 +116,28 @@ jobs:
         shell: bash
         run: bash tools/ci/collabora-android.sh
 
+      - name: Publish native configure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$COLLABORA_ROOT/engine/config.log"
+          {
+            echo "### Collabora native configure diagnostics"
+            echo
+            echo '```text'
+            if [[ -f "$log" ]]; then
+              grep -Ei '(error|failed|missing|not found|unable)' "$log" | tail -n 80 || true
+              echo
+              echo "--- final config.log lines ---"
+              tail -n 80 "$log"
+            else
+              echo "engine/config.log was not created; failure happened before configure completed."
+              find "$COLLABORA_ROOT" -maxdepth 3 -name config.log -print 2>/dev/null || true
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
