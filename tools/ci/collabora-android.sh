@@ -24,7 +24,7 @@ case "$BUILD_MODE" in
     ;;
 esac
 
-android_ndk="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION:-23.0.7599858}"
+android_ndk="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION:-27.3.13750724}"
 engine_dir="$COLLABORA_ROOT/engine"
 jobs="${BUILD_JOBS:-$(nproc)}"
 

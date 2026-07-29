@@ -23,7 +23,9 @@ source_ref = refs/heads/main
 mode       = preflight
 ```
 
-该任务会在 Gerrit 单仓库中检出源码，确认 `engine/` 和 `android/` 都存在，安装官方要求的 Android NDK `23.0.7599858`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
+该任务会在 Gerrit 单仓库中检出源码，确认 `engine/` 和 `android/` 都存在，安装 Android r27 LTS NDK `27.3.13750724`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
+
+Collabora Gerrit `main` 的实际 configure 会拒绝 NDK r23；因此 CI 以当前 Android 官方 r27 LTS 固定版本为准，旧官方页面示例只作历史参考。
 
 `sdkmanager --licenses` 的输入管道会单独保存 `sdkmanager` 的退出状态；`yes` 在对端正常关闭后产生的 SIGPIPE 不会被误判成 SDK 安装失败。
 
