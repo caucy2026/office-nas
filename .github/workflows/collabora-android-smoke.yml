@@ -116,6 +116,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          mkdir -p "$GITHUB_WORKSPACE/out"
           bash tools/ci/collabora-android.sh 2>&1 | tee "$GITHUB_WORKSPACE/out/collabora-smoke.log"
 
       - name: Publish native configure diagnostics
