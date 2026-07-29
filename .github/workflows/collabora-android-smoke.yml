@@ -132,18 +132,18 @@ jobs:
           smoke_log="$GITHUB_WORKSPACE/out/collabora-smoke.log"
           diagnostic=""
           if [[ -f "$build_config_log" ]]; then
-            diagnostic="$(grep -Ei '(error|failed|missing|not found|unable)' "$build_config_log" | tail -n 1 || true)"
+            diagnostic="$(grep -Ei '(configure: error|(^|[[:space:]])error:|failed|missing|not found|unable)' "$build_config_log" | tail -n 1 || true)"
           fi
           if [[ -f "$smoke_log" ]]; then
             if [[ -z "$diagnostic" ]]; then
-              diagnostic="$(grep -Ei '(configure: error|error:|failed|missing|not found|unable)' "$smoke_log" | tail -n 1 || true)"
+              diagnostic="$(grep -Ei '(configure: error|(^|[[:space:]])error:|failed|missing|not found|unable)' "$smoke_log" | tail -n 1 || true)"
             fi
           fi
           if [[ -z "$diagnostic" && -f "$autogen_log" ]]; then
-            diagnostic="$(grep -Ei '(configure: error|error:|failed|missing|not found|unable)' "$autogen_log" | tail -n 1 || true)"
+            diagnostic="$(grep -Ei '(configure: error|(^|[[:space:]])error:|failed|missing|not found|unable)' "$autogen_log" | tail -n 1 || true)"
           fi
           if [[ -z "$diagnostic" && -f "$log" ]]; then
-            diagnostic="$(grep -Ei '(error|failed|missing|not found|unable)' "$log" | tail -n 1 || true)"
+            diagnostic="$(grep -Ei '(configure: error|(^|[[:space:]])error:|failed|missing|not found|unable)' "$log" | tail -n 1 || true)"
             if [[ -z "$diagnostic" ]]; then
               diagnostic="$(tail -n 1 "$log" || true)"
             fi
@@ -153,6 +153,24 @@ jobs:
           fi
           diagnostic="$(printf '%s' "$diagnostic" | tr '\r\n' ' ' | sed 's/::/: :/g')"
           printf '::error title=Collabora engine configure::%s\n' "${diagnostic:0:900}"
+          # Job-log archives are authentication-restricted even for some public
+          # repositories. Emit a small, sanitized context window as annotations,
+          # which remains available from the public Checks API.
+          context_lines="$({
+            for candidate in "$build_config_log" "$smoke_log" "$autogen_log" "$log"; do
+              if [[ -f "$candidate" ]]; then
+                grep -Ei '(configure: error|(^|[[:space:]])error:|failed|missing|not found|unable)' "$candidate" || true
+              fi
+            done
+          } | tail -n 8)"
+          if [[ -z "$context_lines" && -f "$smoke_log" ]]; then
+            context_lines="$(tail -n 8 "$smoke_log")"
+          fi
+          while IFS= read -r context_line; do
+            [[ -z "$context_line" ]] && continue
+            context_line="$(printf '%s' "$context_line" | tr '\r\n' ' ' | sed 's/::/: :/g')"
+            printf '::error title=Collabora configure context::%s\n' "${context_line:0:900}"
+          done <<< "$context_lines"
           {
             echo "### Collabora native configure diagnostics"
             echo
