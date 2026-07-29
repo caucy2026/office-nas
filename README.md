@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`规划阶段`：尚未接入 ANY Office 或 VLC 源码；下一步从最小 Android 工程与双屏验证开始。
+`P0 已完成`：独立 Kotlin Android 工程、D0/D2 双 Activity 路由、主屏标准输入通道与真机安装验证已完成。Office 与 LibVLC 尚未接入；当前进入 P1 的会话恢复与输入/音频协调。详见 [P0 真机验证记录](docs/validation/p0-device-validation.md)。
 
 ## 目录规划
 
@@ -51,4 +51,3 @@ kemi-desklink/
 - 不重写或分叉 KEMI 输入法；应用只遵循 Android `InputConnection`。
 - 不在首期实现云端协作、账号体系或自建 NAS 服务。
 - 不承诺设备本地 8K 编码、8K 录制或多路 4K 转码；这些应在后续压力测试后单独定义。
-

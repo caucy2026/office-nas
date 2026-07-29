@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="KEMI DeskLink"
+        android:theme="@style/Theme.DeskLink">
+        <activity
+            android:name=".app.MediaActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:resizeableActivity="true" />
+        <activity
+            android:name=".app.OfficeActivity"
+            android:exported="true"
+            android:resizeableActivity="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
