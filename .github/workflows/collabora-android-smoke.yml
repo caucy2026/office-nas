@@ -122,6 +122,17 @@ jobs:
         run: |
           set -euo pipefail
           log="$COLLABORA_ROOT/engine/config.log"
+          diagnostic=""
+          if [[ -f "$log" ]]; then
+            diagnostic="$(grep -Ei '(error|failed|missing|not found|unable)' "$log" | tail -n 1 || true)"
+            if [[ -z "$diagnostic" ]]; then
+              diagnostic="$(tail -n 1 "$log" || true)"
+            fi
+          else
+            diagnostic="engine/config.log was not created; failure happened before configure completed."
+          fi
+          diagnostic="$(printf '%s' "$diagnostic" | tr '\r\n' ' ' | sed 's/::/: :/g')"
+          printf '::error title=Collabora engine configure::%s\n' "${diagnostic:0:900}"
           {
             echo "### Collabora native configure diagnostics"
             echo
