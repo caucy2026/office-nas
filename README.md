@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`P1 自动验证已完成`：独立 Kotlin Android 工程、D0/D2 双 Activity 路由、工作区进程恢复、主屏标准输入通道以及 IME/音频协调状态机均已完成。Office 与 LibVLC 尚未接入；实际 KEMI 语音发声仍保留一项人工验收。详见 [P0](docs/validation/p0-device-validation.md) 和 [P1](docs/validation/p1-workspace-voice.md) 真机验证记录。
+`P3a 已完成`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 的本地视频选择/播放闭环均已实现并真机验证。实际 KEMI 语音发声保留一项人工验收；P2 Office 被官方候选上游当前 404 阻塞，P3 的 LibVLC/NAS 适配等待可复现依赖。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md) 和 [P3a](docs/validation/p3a-local-media.md) 记录。
 
 ## 目录规划
 

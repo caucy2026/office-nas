@@ -46,7 +46,7 @@
 | `core:workspace` | `WorkspaceSession`、持久化、跨屏事件 | 渲染 UI |
 | `core:reference` | 视频时间点引用、解析、跳转协议 | 直接编辑 Office 文件压缩包 |
 | `features:office` | 文档打开、编辑器桥接、选区及链接插入 | NAS 浏览和播放器控制 |
-| `features:media` | 内容源浏览、LibVLC 播放、进度/音轨/字幕 | 文档编辑实现 |
+| `features:media` | `MediaEngine` 播放接口；P3a 使用系统播放器处理本地文件，后续以 LibVLC 增加 NAS 协议 | 文档编辑实现 |
 
 ## 4. 核心状态模型
 
@@ -120,9 +120,10 @@ kemi-desklink://media/{provider}/{assetId}?t={positionMs}
 - 4K、高码率 NAS、字幕切换、休眠/拔插屏幕都必须做真机长测。
 - 录像和转码留给 NAS/NVR/SRS 等服务端；客户端先做观看、引用和工作记录。
 
+当前 P3a 已实现本地 `content://` 视频选择、可恢复 URI 和 Android 平台播放器。`MediaEngine` 是明确的替换边界：LibVLC AAR 可复现后，用其实现替换 `PlatformMediaEngine`，再增加 SMB/NFS/UPnP Provider；D2 生命周期、语音协调和工作区模型不需要重写。
+
 ## 8. 安全与隐私
 
 - NAS 密码通过 Android Keystore 加密存储，日志不得包含 URL 中的用户名、密码、令牌或完整私有路径。
 - 默认不上传文档、视频索引、语音文本。
 - Jellyfin 等服务端令牌仅在用户主动配置后保存在本机，并提供“清除账户与缓存”。
-

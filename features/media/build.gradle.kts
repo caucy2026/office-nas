@@ -1,18 +1,14 @@
 plugins {
-    id("com.android.application")
+    id("com.android.library")
     id("org.jetbrains.kotlin.android")
 }
 
 android {
-    namespace = "com.kemi.desklink"
+    namespace = "com.kemi.desklink.media"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.kemi.desklink"
         minSdk = 26
-        targetSdk = 31
-        versionCode = 1
-        versionName = "0.1.0-p0"
     }
 
     compileOptions {
@@ -27,8 +23,3 @@ kotlin {
     }
 }
 
-dependencies {
-    implementation(project(":core:platform"))
-    implementation(project(":core:workspace"))
-    implementation(project(":features:media"))
-}

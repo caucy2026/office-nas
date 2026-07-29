@@ -18,4 +18,4 @@ rootProject.name = "KEMI DeskLink"
 include(":app")
 include(":core:platform")
 include(":core:workspace")
-
+include(":features:media")

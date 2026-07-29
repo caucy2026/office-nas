@@ -29,6 +29,8 @@
 
 ## P2：Office 技术接入验证
 
+> **状态（2026-07-29）：外部阻塞。** 原定 ONLYOFFICE Android 官方候选 URL 当前页面、Git 源码查询与源码归档均返回 404；搜索索引为旧缓存，不能作为依赖依据。未复制任何上游代码，详见 [P2 验证记录](validation/p2-office-upstream.md)。
+
 **目标：** 独立构建并验证 ONLYOFFICE Android 的可集成方式；不把“能拉到源码”误判为“可交付”。
 
 - 固定上游 commit/tag，建立可重复的构建说明。
@@ -40,6 +42,8 @@
 **验收：** 至少各 3 个 DOCX/XLSX/PPTX/PDF 样例可打开；DOCX/XLSX/PPTX 可保存并由桌面 Office 再次打开；语音结果进入实际编辑区。
 
 ## P3：本地与 NAS 媒体接入
+
+> **P3a 已完成：** 已交付独立 `MediaEngine` 边界和 Android 平台本地视频播放。完整的 LibVLC、SMB/NFS/UPnP Provider 仍等待可复现的 LibVLC 依赖，详见 [P3a 验证记录](validation/p3a-local-media.md)。
 
 **目标：** 用 LibVLC 验证播放能力与内容源抽象。
 
@@ -91,4 +95,3 @@
 2. 在目标设备验证 D0/D2 两个 Activity 与 KEMI 语音提交。
 3. 用只读分支分别构建 ONLYOFFICE Android、VLC Android，记录构建成本和许可清单。
 4. 仅当 P0 通过后，再开始任何一个上游项目的适配工作。
-

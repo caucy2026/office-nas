@@ -3,38 +3,55 @@ package com.kemi.desklink.app
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.kemi.desklink.media.PlatformMediaEngine
 import com.kemi.desklink.platform.DisplayRouter
 import com.kemi.desklink.platform.VoiceMediaCoordinator
 import com.kemi.desklink.platform.WorkspaceRepository
+import com.kemi.desklink.workspace.MediaRef
 import com.kemi.desklink.workspace.PlaybackState
 import com.kemi.desklink.workspace.WorkspaceCoordinator
+import com.kemi.desklink.workspace.WorkspaceSession
 
 /**
- * P0 副屏验证面。P3 会在这里接入 LibVLC；此 Activity 只保留媒体控制职责，
- * 不创建文字输入控件，避免抢走 D0 文档的 KEMI IME 焦点。
+ * D2 media workspace. P3a plays user-picked local videos with Android MediaPlayer.
+ * Network providers deliberately remain behind MediaEngine until LibVLC is available.
  */
 class MediaActivity : Activity() {
     private lateinit var stateLabel: TextView
+    private lateinit var sourceLabel: TextView
+    private lateinit var playButton: Button
+    private lateinit var surfaceView: SurfaceView
     private lateinit var repository: WorkspaceRepository
     private lateinit var voiceMediaCoordinator: VoiceMediaCoordinator
+    private lateinit var mediaEngine: PlatformMediaEngine
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         repository = WorkspaceRepository(this)
+        WorkspaceCoordinator.restore(repository.load())
         voiceMediaCoordinator = VoiceMediaCoordinator(
             context = this,
             targetDisplayId = DisplayRouter.currentDisplayId(this),
             onSessionChanged = ::persistAndRender,
+        )
+        mediaEngine = PlatformMediaEngine(
+            context = this,
+            onPrepared = { runOnUiThread(::onMediaPrepared) },
+            onCompleted = { runOnUiThread(::onMediaCompleted) },
+            onError = { message -> runOnUiThread { showPlaybackError(message) } },
         )
         setContentView(createContent())
         window.decorView.setOnApplyWindowInsetsListener { view, insets ->
@@ -43,51 +60,175 @@ class MediaActivity : Activity() {
             }
             view.onApplyWindowInsets(insets)
         }
+        restoreLocalMediaIfPresent()
         Log.i(TAG, "MediaActivity ready on display=${DisplayRouter.currentDisplayId(this)}")
+    }
+
+    override fun onDestroy() {
+        mediaEngine.release()
+        super.onDestroy()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_PICK_LOCAL_VIDEO || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
+        selectLocalMedia(uri)
     }
 
     private fun createContent(): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        val padding = dp(24)
+        val padding = dp(20)
         setPadding(padding, padding, padding, padding)
         setBackgroundColor(0xFF101820.toInt())
 
         addView(TextView(context).apply {
-            text = "KEMI DeskLink · 副屏媒体验证面"
-            textSize = 24f
+            text = "KEMI DeskLink · 副屏媒体 P3a"
+            textSize = 23f
             setTextColor(0xFFFFFFFF.toInt())
         })
-        stateLabel = TextView(context).apply {
-            text = "D${DisplayRouter.currentDisplayId(this@MediaActivity)} · LibVLC 将在 P3 接入"
-            textSize = 16f
+        sourceLabel = TextView(context).apply {
+            text = "请选择本地视频；SMB/NFS/UPnP 将在 LibVLC 依赖可复现后接入"
+            textSize = 14f
             setTextColor(0xFFD0D7DE.toInt())
-            setPadding(0, dp(12), 0, dp(12))
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        addView(sourceLabel)
+        surfaceView = SurfaceView(context).apply {
+            setBackgroundColor(0xFF000000.toInt())
+            holder.addCallback(object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) {
+                    mediaEngine.attach(holder.surface)
+                }
+
+                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+
+                override fun surfaceDestroyed(holder: SurfaceHolder) {
+                    mediaEngine.attach(null)
+                }
+            })
+        }
+        addView(surfaceView, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f,
+        ))
+        stateLabel = TextView(context).apply {
+            text = "D${DisplayRouter.currentDisplayId(this@MediaActivity)} · 媒体：${WorkspaceCoordinator.snapshot().playback}"
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
+            setPadding(0, dp(10), 0, dp(6))
         }
         addView(stateLabel)
         addView(Button(context).apply {
-            text = "切换媒体播放状态（验证状态同步）"
+            text = "选择本地视频"
+            setOnClickListener(::pickLocalVideo)
+        })
+        playButton = Button(context).apply {
+            text = "播放"
             setOnClickListener { togglePlayback() }
-        })
-        addView(Button(context).apply {
-            text = "返回主屏"
-            setOnClickListener { finish() }
-        })
+        }
+        addView(playButton)
     }
 
+    private fun pickLocalVideo(view: View) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "video/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_PICK_LOCAL_VIDEO)
+    }
+
+    private fun selectLocalMedia(uri: Uri) {
+        val title = uri.lastPathSegment?.substringAfterLast('/') ?: "本地视频"
+        val session = WorkspaceCoordinator.update {
+            it.copy(
+                media = MediaRef(
+                    provider = PROVIDER_LOCAL,
+                    assetId = uri.toString(),
+                    displayName = title,
+                    uri = uri.toString(),
+                ),
+                playback = PlaybackState.IDLE,
+            )
+        }
+        persistAndRender(session)
+        sourceLabel.text = "正在准备：$title"
+        mediaEngine.load(uri)
+    }
+
+    private fun restoreLocalMediaIfPresent() {
+        val media = WorkspaceCoordinator.snapshot().media ?: return
+        if (media.provider != PROVIDER_LOCAL) return
+        val uri = Uri.parse(media.uri)
+        if (!isReadable(uri)) {
+            clearInvalidLocalMedia("上次本地视频已不可访问，请重新选择")
+            return
+        }
+        sourceLabel.text = "恢复本地视频：${media.displayName}"
+        mediaEngine.load(uri)
+    }
+
+    private fun onMediaPrepared() {
+        sourceLabel.text = "已准备：${WorkspaceCoordinator.snapshot().media?.displayName ?: "本地视频"}"
+        val session = WorkspaceCoordinator.update { it.copy(playback = PlaybackState.PAUSED) }
+        persistAndRender(session)
+    }
+
+    private fun onMediaCompleted() {
+        persistAndRender(WorkspaceCoordinator.update { it.copy(playback = PlaybackState.PAUSED) })
+    }
+
+    private fun showPlaybackError(message: String) {
+        Log.e(TAG, message)
+        clearInvalidLocalMedia("无法播放该视频，请重新选择")
+    }
+
+    private fun clearInvalidLocalMedia(message: String) {
+        sourceLabel.text = message
+        val session = WorkspaceCoordinator.update {
+            if (it.media?.provider == PROVIDER_LOCAL) {
+                it.copy(media = null, playback = PlaybackState.IDLE)
+            } else {
+                it.copy(playback = PlaybackState.IDLE)
+            }
+        }
+        persistAndRender(session)
+    }
+
+    private fun isReadable(uri: Uri): Boolean = runCatching {
+        contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
+    }.getOrDefault(false)
+
     private fun togglePlayback() {
+        if (!mediaEngine.isPrepared) {
+            sourceLabel.text = "请先选择可播放的本地视频"
+            return
+        }
         val next = WorkspaceCoordinator.update {
             it.copy(playback = if (it.playback == PlaybackState.PLAYING) PlaybackState.PAUSED else PlaybackState.PLAYING)
         }
         persistAndRender(next)
-        Log.i(TAG, "Playback state=${next.playback}")
     }
 
-    private fun persistAndRender(session: com.kemi.desklink.workspace.WorkspaceSession) {
+    private fun persistAndRender(session: WorkspaceSession) {
         repository.save(session)
+        if (::mediaEngine.isInitialized) {
+            when (session.playback) {
+                PlaybackState.PLAYING -> mediaEngine.play()
+                PlaybackState.PAUSED, PlaybackState.IDLE -> mediaEngine.pause()
+            }
+        }
         if (::stateLabel.isInitialized) {
             val voice = session.voice?.state?.name ?: "IDLE"
             stateLabel.text = "D${DisplayRouter.currentDisplayId(this)} · 媒体：${session.playback} · 语音：$voice"
+            playButton.text = if (session.playback == PlaybackState.PLAYING) "暂停" else "播放"
         }
         Log.i(TAG, "Workspace playback=${session.playback}, voice=${session.voice?.state}")
     }
@@ -96,6 +237,8 @@ class MediaActivity : Activity() {
 
     companion object {
         private const val TAG = "DeskLink.Media"
+        private const val REQUEST_PICK_LOCAL_VIDEO = 20
+        private const val PROVIDER_LOCAL = "local"
 
         fun newIntent(context: Context): Intent = Intent(context, MediaActivity::class.java)
     }
