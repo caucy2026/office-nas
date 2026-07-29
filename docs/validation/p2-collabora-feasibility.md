@@ -19,6 +19,7 @@
 2. 官方构建说明要求在 **Linux** 上先编译 Android 原生 engine，再以 `--enable-androidapp --with-lo-builddir=... --with-android-abi=arm64-v8a` 构建 Android 壳。当前 macOS 主机不应伪造“源码构建已通过”。当前 Gerrit `main` 的实际配置检查已要求 NDK `>= 27`，因此 CI 固定 Android r27 LTS `27.3.13750724`，不继续沿用页面中的旧 r23 示例。
 3. GitHub 镜像用于发现、版本固定和 Android 壳审查；官方说明目前把完整 engine 构建放在 Collabora Gerrit 单仓库。正式构建必须固定 Gerrit 的可复现 commit/镜像，而不是只依赖 GitHub 页面。
 4. 官方 F-Droid 元数据显示发布包为 MPL-2.0；原生 engine 与传递依赖仍须在发布前做完整许可证/SBOM 扫描，不能据此直接下最终法律结论。
+5. GitHub Linux 预检已在 Gerrit 源码 `af7c4b942004777653ddcaa1e79a84dc6c4de5b3` 通过 NDK r27 检查；其下一失败点为 BUILD-side configure（`engine/CONF-FOR-BUILD/config.log`），尚未开始 `make` 或宣称 APK 可用。
 
 ## 推荐集成形态
 
