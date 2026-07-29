@@ -37,9 +37,9 @@ interface MediaEngine {
 }
 
 /**
- * LibVLC-backed implementation used for local files and network URI schemes such as
- * smb://, nfs://, upnp://, http(s):// and rtsp://. It uses LibVLC's managed
- * VLCVideoLayout because a raw SurfaceView is not sufficient on all Android displays.
+ * LibVLC-backed implementation for network URI schemes such as smb://, nfs://,
+ * upnp://, http(s):// and rtsp://. Android document-provider content URIs use
+ * [PlatformMediaEngine], whose Context data-source path preserves their grants.
  */
 class LibVlcMediaEngine(
     context: Context,

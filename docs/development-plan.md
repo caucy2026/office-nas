@@ -43,7 +43,7 @@
 
 ## P3：本地与 NAS 媒体接入
 
-> **P3a/P3b/P3c 已完成基础闭环：** 已交付独立 `MediaEngine`、平台本地播放兜底、`LibVLC 3.6.5`、D0 无凭据网络 URI 入口、D2 公开 HLS 真机出画，以及最近播放、收藏和断点状态持久化。SMB/NFS/UPnP 浏览、Keystore 凭据、可 seek VOD 断点样片、实际 NAS 样片和长测仍未完成，详见 [P3a](validation/p3a-local-media.md)、[P3b](validation/p3b-libvlc-network.md) 和 [P3c](validation/p3c-media-library.md) 验证记录。
+> **P3a/P3b/P3c 已完成基础闭环：** 已交付独立 `MediaEngine`、`content://` 本地文件到 Android 平台播放器的明确路由、`LibVLC 3.6.5` 网络流路由、D0 无凭据网络 URI 入口、D2 公开 HLS 真机出画，以及最近播放、收藏和断点状态持久化。SMB/NFS/UPnP 浏览、Keystore 凭据、可 seek VOD 断点样片、实际 NAS 样片和长测仍未完成，详见 [P3a](validation/p3a-local-media.md)、[P3b](validation/p3b-libvlc-network.md) 和 [P3c](validation/p3c-media-library.md) 验证记录。
 
 **目标：** 用 LibVLC 验证播放能力与内容源抽象。
 
@@ -92,6 +92,7 @@
 ## 当前立即行动项
 
 1. 将 `Collabora Android smoke` 推送到 GitHub 后，先用 `preflight` 解析 Gerrit 的实际提交，再以其 40 位 SHA 触发 `assemble`，产出 arm64 APK 并在 KEMI 冒烟。详见 [GitHub Actions 构建记录](validation/p2-github-actions-build.md)。
-2. 提供一套不含生产凭据的 SMB/NFS 测试样片，完成 P3 网络协议、断连与重连验收。
-3. 将 NAS 凭据接入 Android Keystore；继续禁止其进入 `WorkspaceSession`、日志和 URI。
-4. 使用真实 KEMI 语音 IME 做一次“播放 → 语音 → 暂停 → 结束 → 恢复”的人工验收。
+2. 在没有外部应用抢占双屏焦点的测试窗口，使用本机 H.264 VOD 完成“播放超过 5 秒 → 重启 → 非零位置续播”的真机验收。
+3. 提供一套不含生产凭据的 SMB/NFS 测试样片，完成 P3 网络协议、断连与重连验收。
+4. 将 NAS 凭据接入 Android Keystore；继续禁止其进入 `WorkspaceSession`、日志和 URI。
+5. 使用真实 KEMI 语音 IME 做一次“播放 → 语音 → 暂停 → 结束 → 恢复”的人工验收。

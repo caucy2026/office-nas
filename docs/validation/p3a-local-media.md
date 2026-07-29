@@ -24,7 +24,19 @@
 
 本轮未读取用户的私人媒体文件，也未提供公开样片；因此“选定真实 H.264/H.265 1080p/4K 文件后的画面、音频、拖动和长时间播放”保留为下一次带样片验收。应用入口、权限与播放器回调已在真机运行。
 
+## 2026-07-29：本地 `content://` 引擎路由修正
+
+一次后续真机 VOD 验收发现：LibVLC 可以接受系统文件选择器给出的 `content://` URI 并进入“已准备”状态，但实际开始播放后会报告错误并清理媒体。该 URI 是 Android 文档提供器授予的能力，不应假设 LibVLC 能以 URL 方式稳定消费。
+
+修正后：
+
+- `local` `MediaRef` 在加载前明确选择 `PlatformMediaEngine`，通过 `MediaPlayer.setDataSource(Context, Uri)` 保持 Android 的授权语义；SMB/NFS/UPnP/HTTP(S)/RTSP 等网络 URI 保持 LibVLC 路径。
+- 切换引擎时同步重建 `VLCVideoLayout` 或 `SurfaceView`，不复用另一引擎的输出 Surface。
+- 通过 `OpenableColumns.DISPLAY_NAME` 读取系统文件名，避免 DocumentsUI 的 `msf:962` 一类内部 document id 出现在用户界面和最近播放列表。
+- `MediaPlaybackEnginePolicyTest` 已覆盖本地/网络路由，且完整 Gradle 测试与 APK 构建通过。
+
+**尚未宣称通过：** 修复版在测试机上的人工 VOD 续播复测尚未完成。测试期间 `com.carriez.flutter_hbb` / `com.huanglong.portui` 会抢占 D0/D2 焦点，自动化无法稳定保持 DeskLink 的主屏入口；这属于测试环境干扰，不能替代本机 H.264 真实播放验证。
+
 ## P3b 前置条件
 
 官方 VLC Android 资料确认 LibVLC 是用于嵌入的引擎，并可覆盖 SMB、FTP、SFTP、NFS、UPnP/DLNA 等协议；但本机构建缓存没有 LibVLC，Maven Central 查询在当前网络条件下无法完成。待获得可复现 AAR/仓库后，实现 `LibVlcMediaEngine` 和各 NAS Provider，保留当前 `MediaEngine` API。
-

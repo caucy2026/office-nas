@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.Gravity
 import android.view.SurfaceHolder
@@ -28,6 +29,8 @@ import com.kemi.desklink.platform.VoiceMediaCoordinator
 import com.kemi.desklink.platform.WorkspaceRepository
 import com.kemi.desklink.workspace.MediaHistoryEntry
 import com.kemi.desklink.workspace.MediaHistoryPolicy
+import com.kemi.desklink.workspace.MediaPlaybackEngine
+import com.kemi.desklink.workspace.MediaPlaybackEnginePolicy
 import com.kemi.desklink.workspace.MediaRef
 import com.kemi.desklink.workspace.PlaybackState
 import com.kemi.desklink.workspace.WorkspaceCoordinator
@@ -49,6 +52,7 @@ class MediaActivity : Activity() {
     private lateinit var mediaLibraryRepository: MediaLibraryRepository
     private lateinit var voiceMediaCoordinator: VoiceMediaCoordinator
     private lateinit var mediaEngine: MediaEngine
+    private var mediaPlaybackEngine = MediaPlaybackEngine.LIB_VLC
     private val progressHandler = Handler(Looper.getMainLooper())
     private val progressTicker = object : Runnable {
         override fun run() {
@@ -72,7 +76,8 @@ class MediaActivity : Activity() {
             targetDisplayId = DisplayRouter.currentDisplayId(this),
             onSessionChanged = ::persistAndRender,
         )
-        mediaEngine = createMediaEngine()
+        mediaPlaybackEngine = MediaPlaybackEnginePolicy.select(WorkspaceCoordinator.snapshot().media)
+        mediaEngine = createMediaEngine(mediaPlaybackEngine)
         setContentView(createContent())
         window.decorView.setOnApplyWindowInsetsListener { view, insets ->
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -81,8 +86,8 @@ class MediaActivity : Activity() {
             view.onApplyWindowInsets(insets)
         }
         videoContainer.post {
-            vlcVideoLayout?.let(mediaEngine::attachVideoLayout)
-            restoreMediaIfPresent()
+            renderMediaOutput()
+            videoContainer.post(::restoreMediaIfPresent)
         }
         Log.i(TAG, "MediaActivity ready on display=${DisplayRouter.currentDisplayId(this)}")
     }
@@ -136,33 +141,6 @@ class MediaActivity : Activity() {
         addView(sourceLabel)
         videoContainer = FrameLayout(context).apply {
             setBackgroundColor(0xFF000000.toInt())
-            if (mediaEngine.usesVlcVideoLayout) {
-                VLCVideoLayout(context).also { layout ->
-                    vlcVideoLayout = layout
-                    addView(layout, FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    ))
-                }
-            } else {
-                SurfaceView(context).apply {
-                    holder.addCallback(object : SurfaceHolder.Callback {
-                        override fun surfaceCreated(holder: SurfaceHolder) {
-                            mediaEngine.attach(holder.surface)
-                        }
-
-                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
-
-                        override fun surfaceDestroyed(holder: SurfaceHolder) {
-                            mediaEngine.attach(null)
-                        }
-                    })
-                    addView(this, FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    ))
-                }
-            }
         }
         addView(videoContainer, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -208,12 +186,11 @@ class MediaActivity : Activity() {
     }
 
     private fun selectLocalMedia(uri: Uri) {
-        val title = uri.lastPathSegment?.substringAfterLast('/') ?: "本地视频"
         openMedia(
             MediaRef(
                 provider = PROVIDER_LOCAL,
                 assetId = uri.toString(),
-                displayName = title,
+                displayName = resolveDisplayName(uri),
                 uri = uri.toString(),
             ),
         )
@@ -284,13 +261,62 @@ class MediaActivity : Activity() {
         contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
     }.getOrDefault(false)
 
-    private fun createMediaEngine(): MediaEngine {
+    private fun createMediaEngine(kind: MediaPlaybackEngine): MediaEngine {
         val prepared = { runOnUiThread(::onMediaPrepared) }
         val completed = { runOnUiThread(::onMediaCompleted) }
         val error = { message: String -> runOnUiThread { showPlaybackError(message) } }
+        if (kind == MediaPlaybackEngine.PLATFORM) {
+            return PlatformMediaEngine(this, prepared, completed, error)
+        }
         return runCatching { LibVlcMediaEngine(this, prepared, completed, error) }
-            .onFailure { Log.w(TAG, "LibVLC unavailable; using platform local fallback", it) }
+            .onFailure { Log.w(TAG, "LibVLC unavailable; using platform fallback", it) }
             .getOrElse { PlatformMediaEngine(this, prepared, completed, error) }
+    }
+
+    private fun ensureMediaEngineFor(media: MediaRef): Boolean {
+        val requiredEngine = MediaPlaybackEnginePolicy.select(media)
+        if (requiredEngine == mediaPlaybackEngine) return false
+        persistProgress()
+        progressHandler.removeCallbacks(progressTicker)
+        mediaEngine.release()
+        mediaPlaybackEngine = requiredEngine
+        mediaEngine = createMediaEngine(requiredEngine)
+        renderMediaOutput()
+        return true
+    }
+
+    private fun renderMediaOutput() {
+        if (!::videoContainer.isInitialized) return
+        videoContainer.removeAllViews()
+        vlcVideoLayout = null
+        if (mediaEngine.usesVlcVideoLayout) {
+            VLCVideoLayout(this).also { layout ->
+                vlcVideoLayout = layout
+                videoContainer.addView(layout, FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ))
+            }
+            videoContainer.post { vlcVideoLayout?.let(mediaEngine::attachVideoLayout) }
+        } else {
+            SurfaceView(this).apply {
+                holder.addCallback(object : SurfaceHolder.Callback {
+                    override fun surfaceCreated(holder: SurfaceHolder) {
+                        mediaEngine.attach(holder.surface)
+                    }
+
+                    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+
+                    override fun surfaceDestroyed(holder: SurfaceHolder) {
+                        mediaEngine.attach(null)
+                    }
+                })
+                videoContainer.addView(this, FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ))
+            }
+        }
     }
 
     private fun togglePlayback() {
@@ -310,6 +336,7 @@ class MediaActivity : Activity() {
             clearMedia("本地视频已不可访问，请重新选择")
             return
         }
+        val engineChanged = ensureMediaEngineFor(media)
         val history = mediaLibraryRepository.find(media)
         val resumePosition = maxOf(
             if (restoring) WorkspaceCoordinator.snapshot().mediaPositionMs else 0L,
@@ -325,7 +352,27 @@ class MediaActivity : Activity() {
         }
         persistAndRender(session)
         sourceLabel.text = "正在准备：${media.displayName}"
-        mediaEngine.load(uri)
+        if (engineChanged) {
+            videoContainer.post { loadMediaIfStillSelected(media, uri) }
+        } else {
+            loadMediaIfStillSelected(media, uri)
+        }
+    }
+
+    private fun loadMediaIfStillSelected(media: MediaRef, uri: Uri) {
+        if (WorkspaceCoordinator.snapshot().media == media) mediaEngine.load(uri)
+    }
+
+    private fun resolveDisplayName(uri: Uri): String {
+        val fromProvider = runCatching {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+            }
+        }.getOrNull()
+        return fromProvider?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment?.substringAfterLast('/')
+            ?: "本地视频"
     }
 
     private fun toggleFavorite() {
