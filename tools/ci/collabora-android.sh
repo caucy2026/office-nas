@@ -28,10 +28,24 @@ android_ndk="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION:-23.0.7599858}"
 engine_dir="$COLLABORA_ROOT/engine"
 jobs="${BUILD_JOBS:-$(nproc)}"
 
-test -x "$engine_dir/autogen.sh"
-test -x "$COLLABORA_ROOT/autogen.sh"
-test -x "$COLLABORA_ROOT/android/gradlew"
-test -d "$android_ndk"
+require_executable() {
+  if [[ ! -x "$1" ]]; then
+    echo "Expected executable is missing: $1" >&2
+    exit 2
+  fi
+}
+
+require_directory() {
+  if [[ ! -d "$1" ]]; then
+    echo "Expected directory is missing: $1" >&2
+    exit 2
+  fi
+}
+
+require_executable "$engine_dir/autogen.sh"
+require_executable "$COLLABORA_ROOT/autogen.sh"
+require_executable "$COLLABORA_ROOT/android/gradlew"
+require_directory "$android_ndk"
 
 mkdir -p "$GITHUB_WORKSPACE/out"
 
