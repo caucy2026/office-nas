@@ -8,9 +8,11 @@
 | 工作流 | 触发 | 用途 | 资源策略 |
 | --- | --- | --- | --- |
 | `Android verify` | PR、`main` 推送、手动 | 编译和测试当前 DeskLink 模块 | 最多 20 分钟；Gradle 缓存；会取消同一分支过期任务。 |
-| `Collabora Android smoke` | **仅手动** | 从 Collabora Gerrit 构建其独立 Android 候选 APK | 最多 6 小时；只构建 `arm64-v8a`；同一仓库串行，绝不取消正在构建的 native job。 |
+| `Collabora Android smoke` | 手动；受控 `collabora-preflight-*` 标签 | 从 Collabora Gerrit 构建其独立 Android 候选 APK | 最多 6 小时；只构建 `arm64-v8a`；手动完整构建串行且不会被取消。 |
 
 这两个任务故意不互相阻塞：DeskLink 每次提交持续得到快速回归，而耗时的 Office 构建只在上游验证节点触发。
+
+后续的 `collabora-preflight-*` 标签会取消仍在运行的旧预检，避免重复占用 Runner；从页面手动启动的 `assemble` 永远不会被预检标签取消。
 
 ## 第一次执行：低成本预检
 
@@ -24,6 +26,8 @@ mode       = preflight
 该任务会在 Gerrit 单仓库中检出源码，确认 `engine/` 和 `android/` 都存在，安装官方要求的 Android NDK `23.0.7599858`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
 
 `sdkmanager --licenses` 的输入管道会单独保存 `sdkmanager` 的退出状态；`yes` 在对端正常关闭后产生的 SIGPIPE 不会被误判成 SDK 安装失败。
+
+Gerrit 源码只浅抓取请求的一个 ref，并设置 20 分钟连接/传输上限；预检不下载 monorepo 的完整历史。失败时保留配置与元数据，先修复连接或 ref，再开始完整构建。
 
 如果构建机只有 Git SSH 权限、没有 GitHub API Token，也可显式推送名为 `collabora-preflight-*` 的标签；它只会以 `refs/heads/main` 执行同样的预检。普通 `main` 提交不会触发它。这个标签入口只适用于预检，完整构建仍必须通过手动工作流输入固定 SHA。
 

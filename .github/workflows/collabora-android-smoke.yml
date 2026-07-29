@@ -25,8 +25,9 @@ permissions:
 
 concurrency:
   group: collabora-android-arm64-${{ github.repository }}
-  # Do not kill a native build already consuming a runner; queue the next request.
-  cancel-in-progress: false
+  # A newer preflight tag supersedes a stale preflight. Manual `assemble` runs
+  # are never cancelled: native engine builds remain queued and reproducible.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   smoke:
@@ -97,8 +98,12 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p "$(dirname "$COLLABORA_ROOT")"
-          git clone --filter=blob:none --no-checkout https://gerrit.collaboraoffice.com/online "$COLLABORA_ROOT"
-          git -C "$COLLABORA_ROOT" checkout --detach "$SOURCE_REF"
+          # A preflight needs one ref, not the monorepo's whole Git history.
+          # `timeout` avoids a stalled Gerrit connection consuming the six-hour job.
+          git init --initial-branch=bootstrap "$COLLABORA_ROOT"
+          git -C "$COLLABORA_ROOT" remote add origin https://gerrit.collaboraoffice.com/online
+          timeout 1200 git -C "$COLLABORA_ROOT" fetch --depth=1 origin "$SOURCE_REF"
+          git -C "$COLLABORA_ROOT" checkout --detach FETCH_HEAD
           test -d "$COLLABORA_ROOT/engine"
           test -d "$COLLABORA_ROOT/android"
           source_sha="$(git -C "$COLLABORA_ROOT" rev-parse HEAD)"
