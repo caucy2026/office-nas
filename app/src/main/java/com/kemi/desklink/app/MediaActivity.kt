@@ -7,10 +7,14 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.kemi.desklink.platform.DisplayRouter
+import com.kemi.desklink.platform.VoiceMediaCoordinator
+import com.kemi.desklink.platform.WorkspaceRepository
 import com.kemi.desklink.workspace.PlaybackState
 import com.kemi.desklink.workspace.WorkspaceCoordinator
 
@@ -20,10 +24,25 @@ import com.kemi.desklink.workspace.WorkspaceCoordinator
  */
 class MediaActivity : Activity() {
     private lateinit var stateLabel: TextView
+    private lateinit var repository: WorkspaceRepository
+    private lateinit var voiceMediaCoordinator: VoiceMediaCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        repository = WorkspaceRepository(this)
+        voiceMediaCoordinator = VoiceMediaCoordinator(
+            context = this,
+            targetDisplayId = DisplayRouter.currentDisplayId(this),
+            onSessionChanged = ::persistAndRender,
+        )
         setContentView(createContent())
+        window.decorView.setOnApplyWindowInsetsListener { view, insets ->
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                voiceMediaCoordinator.onImeVisibilityChanged(insets.isVisible(WindowInsets.Type.ime()))
+            }
+            view.onApplyWindowInsets(insets)
+        }
         Log.i(TAG, "MediaActivity ready on display=${DisplayRouter.currentDisplayId(this)}")
     }
 
@@ -60,8 +79,17 @@ class MediaActivity : Activity() {
         val next = WorkspaceCoordinator.update {
             it.copy(playback = if (it.playback == PlaybackState.PLAYING) PlaybackState.PAUSED else PlaybackState.PLAYING)
         }
-        stateLabel.text = "D${DisplayRouter.currentDisplayId(this)} · 状态：${next.playback}"
+        persistAndRender(next)
         Log.i(TAG, "Playback state=${next.playback}")
+    }
+
+    private fun persistAndRender(session: com.kemi.desklink.workspace.WorkspaceSession) {
+        repository.save(session)
+        if (::stateLabel.isInitialized) {
+            val voice = session.voice?.state?.name ?: "IDLE"
+            stateLabel.text = "D${DisplayRouter.currentDisplayId(this)} · 媒体：${session.playback} · 语音：$voice"
+        }
+        Log.i(TAG, "Workspace playback=${session.playback}, voice=${session.voice?.state}")
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -72,4 +100,3 @@ class MediaActivity : Activity() {
         fun newIntent(context: Context): Intent = Intent(context, MediaActivity::class.java)
     }
 }
-

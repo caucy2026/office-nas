@@ -17,6 +17,10 @@ android {
     }
 }
 
+dependencies {
+    implementation(project(":core:workspace"))
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

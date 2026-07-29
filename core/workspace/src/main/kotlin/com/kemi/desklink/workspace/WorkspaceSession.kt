@@ -57,8 +57,47 @@ object WorkspaceCoordinator {
     }
 
     @Synchronized
+    fun restore(session: WorkspaceSession): WorkspaceSession {
+        current = session
+        return current
+    }
+
+    @Synchronized
     fun resetForTest() {
         current = WorkspaceSession()
     }
 }
 
+/** Pure transition rules that can be tested without Android or a real media engine. */
+object VoiceSessionReducer {
+    fun onImeOpened(
+        session: WorkspaceSession,
+        requestId: String,
+        targetDisplayId: Int,
+    ): WorkspaceSession {
+        if (session.voice?.state == VoiceState.LISTENING) return session
+
+        val wasPlaying = session.playback == PlaybackState.PLAYING
+        return session.copy(
+            playback = if (wasPlaying) PlaybackState.PAUSED else session.playback,
+            mediaWasPlayingBeforeVoice = wasPlaying,
+            voice = VoiceSession(
+                requestId = requestId,
+                targetDisplayId = targetDisplayId,
+                targetSelectionVersion = session.selectionVersion,
+                state = VoiceState.LISTENING,
+            ),
+        )
+    }
+
+    fun onImeClosed(session: WorkspaceSession, requestId: String): WorkspaceSession {
+        val voice = session.voice ?: return session
+        if (voice.requestId != requestId || voice.state != VoiceState.LISTENING) return session
+
+        return session.copy(
+            playback = if (session.mediaWasPlayingBeforeVoice) PlaybackState.PLAYING else session.playback,
+            mediaWasPlayingBeforeVoice = false,
+            voice = voice.copy(state = VoiceState.FINISHED),
+        )
+    }
+}

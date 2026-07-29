@@ -2,6 +2,8 @@ package com.kemi.desklink.app
 
 import android.app.Activity
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -10,6 +12,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.kemi.desklink.platform.DisplayRouter
+import com.kemi.desklink.platform.WorkspaceRepository
 import com.kemi.desklink.workspace.WorkspaceCoordinator
 
 /**
@@ -19,9 +22,12 @@ import com.kemi.desklink.workspace.WorkspaceCoordinator
 class OfficeActivity : Activity() {
     private lateinit var editor: EditText
     private lateinit var displayStatus: TextView
+    private lateinit var repository: WorkspaceRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        repository = WorkspaceRepository(this)
+        WorkspaceCoordinator.restore(repository.load())
 
         if (!intent.getBooleanExtra(EXTRA_MAIN_DISPLAY_REDIRECT, false) &&
             DisplayRouter.currentDisplayId(this) != DisplayRouter.MAIN_DISPLAY_ID
@@ -41,12 +47,7 @@ class OfficeActivity : Activity() {
     override fun onPause() {
         super.onPause()
         if (::editor.isInitialized) {
-            WorkspaceCoordinator.update {
-                it.copy(
-                    draftText = editor.text.toString(),
-                    selectionVersion = it.selectionVersion + 1,
-                )
-            }
+            persistEditor(editor.text.toString())
         }
     }
 
@@ -72,6 +73,15 @@ class OfficeActivity : Activity() {
                 gravity = Gravity.TOP or Gravity.START
                 setBackgroundColor(0xFFFFFFFF.toInt())
                 setPadding(dp(14), dp(14), dp(14), dp(14))
+                addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+                    override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = Unit
+
+                    override fun afterTextChanged(text: Editable?) {
+                        persistEditor(text?.toString().orEmpty())
+                    }
+                })
             }
             addView(editor, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -100,6 +110,16 @@ class OfficeActivity : Activity() {
         DisplayRouter.launchOnDisplay(this, MediaActivity.newIntent(this), secondaryId)
     }
 
+    private fun persistEditor(text: String) {
+        val session = WorkspaceCoordinator.update {
+            if (it.draftText == text) it else it.copy(
+                draftText = text,
+                selectionVersion = it.selectionVersion + 1,
+            )
+        }
+        repository.save(session)
+    }
+
     private fun title(value: String) = TextView(this).apply {
         text = value
         textSize = 24f
@@ -113,4 +133,3 @@ class OfficeActivity : Activity() {
         const val EXTRA_MAIN_DISPLAY_REDIRECT = "main_display_redirect"
     }
 }
-

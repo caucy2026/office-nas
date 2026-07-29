@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`P0 已完成`：独立 Kotlin Android 工程、D0/D2 双 Activity 路由、主屏标准输入通道与真机安装验证已完成。Office 与 LibVLC 尚未接入；当前进入 P1 的会话恢复与输入/音频协调。详见 [P0 真机验证记录](docs/validation/p0-device-validation.md)。
+`P1 自动验证已完成`：独立 Kotlin Android 工程、D0/D2 双 Activity 路由、工作区进程恢复、主屏标准输入通道以及 IME/音频协调状态机均已完成。Office 与 LibVLC 尚未接入；实际 KEMI 语音发声仍保留一项人工验收。详见 [P0](docs/validation/p0-device-validation.md) 和 [P1](docs/validation/p1-workspace-voice.md) 真机验证记录。
 
 ## 目录规划
 
