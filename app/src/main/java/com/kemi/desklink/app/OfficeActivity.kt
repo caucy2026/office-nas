@@ -143,6 +143,9 @@ class OfficeActivity : Activity() {
                             displayName = source.displayName,
                             uri = source.uri,
                         ),
+                        playback = com.kemi.desklink.workspace.PlaybackState.IDLE,
+                        mediaPositionMs = 0L,
+                        mediaDurationMs = 0L,
                     )
                 }
                 repository.save(session)

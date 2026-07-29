@@ -8,7 +8,7 @@ KEMI DeskLink 计划以 **AGPL-3.0-or-later** 发布，以便在直接集成 AGP
 
 | 依赖 | 角色 | 许可证风险与处理 |
 | --- | --- | --- |
-| ONLYOFFICE Documents Android | Office/PDF 编辑能力来源 | 上游采用 AGPL 体系。若复制、修改或链接其代码，DeskLink 的发布、对应源码提供和修改说明必须满足 AGPL 要求。固定 commit 并保留 Notices。 |
+| Collabora Office Android（P2 候选） | Office/PDF 编辑能力来源 | 目前仅做独立构建验证，尚未接入 DeskLink。其 F-Droid 应用元数据标注 MPL-2.0；原生 engine 和传递依赖仍须在正式集成前完成完整许可证/SBOM 扫描，不能据此下最终法律结论。 |
 | LibVLC `org.videolan.android:libvlc-all:3.6.5` | 当前媒体播放与网络 URI 解码 | 本工程仅声明该 AAR；其 Maven POM 标注 LGPL-2.1。VLC Android 整体应用的 GPL 与此 AAR 不能混同。正式发布前仍须对 AAR 内 native `.so` 与传递依赖生成精确清单并完成许可证核验。 |
 | Jellyfin Android | 可选媒体库 Provider | 仅在启用模块时纳入 Notices 与许可证审查；不应把其品牌、服务条款或服务端要求误写成 DeskLink 的基础能力。 |
 
@@ -18,7 +18,7 @@ KEMI DeskLink 计划以 **AGPL-3.0-or-later** 发布，以便在直接集成 AGP
 2. 发布 APK 的同时提供与该 APK 对应的完整源码、构建脚本和修改说明。
 3. 保留第三方版权声明、NOTICE、商标使用要求与许可证文本。
 4. 对 native `.so`、Gradle 传递依赖和媒体编解码插件运行许可证扫描，生成 `THIRD_PARTY_NOTICES.md`。
-5. 不使用 ONLYOFFICE、VLC、Jellyfin 商标作为本项目名称或暗示官方背书。
+5. 不使用 Collabora、VLC、Jellyfin 商标作为本项目名称或暗示官方背书。
 
 ## 上游同步原则
 

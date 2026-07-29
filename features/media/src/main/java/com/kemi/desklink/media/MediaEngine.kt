@@ -16,6 +16,8 @@ import org.videolan.libvlc.util.VLCVideoLayout
 interface MediaEngine {
     val isPrepared: Boolean
     val usesVlcVideoLayout: Boolean get() = false
+    val currentPositionMs: Long get() = 0L
+    val durationMs: Long get() = 0L
 
     fun attach(surface: Surface?)
 
@@ -23,6 +25,9 @@ interface MediaEngine {
     fun attachVideoLayout(layout: VLCVideoLayout) = Unit
 
     fun load(uri: Uri)
+
+    /** Best-effort seek used for persisted resume points. */
+    fun seekTo(positionMs: Long) = Unit
 
     fun play()
 
@@ -57,6 +62,10 @@ class LibVlcMediaEngine(
     override var isPrepared: Boolean = false
         private set
     override val usesVlcVideoLayout: Boolean = true
+    override val currentPositionMs: Long
+        get() = if (isPrepared) player.time.coerceAtLeast(0L) else 0L
+    override val durationMs: Long
+        get() = if (isPrepared) player.length.coerceAtLeast(0L) else 0L
 
     init {
         player.setEventListener { event ->
@@ -96,6 +105,10 @@ class LibVlcMediaEngine(
         onPrepared()
     }
 
+    override fun seekTo(positionMs: Long) {
+        if (isPrepared) player.time = positionMs.coerceAtLeast(0L)
+    }
+
     override fun play() {
         if (isPrepared && !player.isPlaying) player.play()
     }
@@ -126,6 +139,10 @@ class PlatformMediaEngine(
 
     override var isPrepared: Boolean = false
         private set
+    override val currentPositionMs: Long
+        get() = if (isPrepared) player.currentPosition.toLong().coerceAtLeast(0L) else 0L
+    override val durationMs: Long
+        get() = if (isPrepared) player.duration.toLong().coerceAtLeast(0L) else 0L
 
     init {
         player.setOnPreparedListener {
@@ -158,6 +175,10 @@ class PlatformMediaEngine(
         } catch (error: Exception) {
             onError(error.message ?: error.javaClass.simpleName)
         }
+    }
+
+    override fun seekTo(positionMs: Long) {
+        if (isPrepared) player.seekTo(positionMs.coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
     }
 
     override fun play() {

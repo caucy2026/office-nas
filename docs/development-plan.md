@@ -43,12 +43,12 @@
 
 ## P3：本地与 NAS 媒体接入
 
-> **P3a/P3b 已完成基础闭环：** 已交付独立 `MediaEngine`、平台本地播放兜底、`LibVLC 3.6.5`、D0 无凭据网络 URI 入口，以及 D2 公开 HLS 真机出画。SMB/NFS/UPnP 浏览、Keystore 凭据、实际 NAS 样片和长测仍未完成，详见 [P3a](validation/p3a-local-media.md) 和 [P3b](validation/p3b-libvlc-network.md) 验证记录。
+> **P3a/P3b/P3c 已完成基础闭环：** 已交付独立 `MediaEngine`、平台本地播放兜底、`LibVLC 3.6.5`、D0 无凭据网络 URI 入口、D2 公开 HLS 真机出画，以及最近播放、收藏和断点状态持久化。SMB/NFS/UPnP 浏览、Keystore 凭据、可 seek VOD 断点样片、实际 NAS 样片和长测仍未完成，详见 [P3a](validation/p3a-local-media.md)、[P3b](validation/p3b-libvlc-network.md) 和 [P3c](validation/p3c-media-library.md) 验证记录。
 
 **目标：** 用 LibVLC 验证播放能力与内容源抽象。
 
 - 实现 `MediaProvider`：`local`、`smb` 为首批；NFS/UPnP/DLNA 在接口稳定后增加。
-- 集成本地文件浏览、收藏、最近播放与断点续播。
+- 完成本地/NAS 可 seek 样片上的断点续播真机验收；在此基础上增加本地文件浏览。
 - 接入 LibVLC 的硬解优先策略、字幕/音轨切换和失败降级。
 - 建立 NAS 凭据的 Keystore 保存、网络断开重连和脱敏日志。
 - 可选实现 Jellyfin Provider，前提是 P3 核心功能已稳定。

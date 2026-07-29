@@ -29,6 +29,8 @@ class WorkspaceRepository(context: Context) {
             playback = preferences.getString(KEY_PLAYBACK, PlaybackState.IDLE.name)
                 ?.let { runCatching { PlaybackState.valueOf(it) }.getOrDefault(PlaybackState.IDLE) }
                 ?: PlaybackState.IDLE,
+            mediaPositionMs = preferences.getLong(KEY_MEDIA_POSITION_MS, 0L),
+            mediaDurationMs = preferences.getLong(KEY_MEDIA_DURATION_MS, 0L),
         )
     }
 
@@ -42,6 +44,8 @@ class WorkspaceRepository(context: Context) {
             .putString(KEY_MEDIA_ASSET_ID, session.media?.assetId)
             .putString(KEY_MEDIA_NAME, session.media?.displayName)
             .putString(KEY_MEDIA_URI, session.media?.uri)
+            .putLong(KEY_MEDIA_POSITION_MS, session.mediaPositionMs)
+            .putLong(KEY_MEDIA_DURATION_MS, session.mediaDurationMs)
             .apply()
     }
 
@@ -55,6 +59,7 @@ class WorkspaceRepository(context: Context) {
         const val KEY_MEDIA_ASSET_ID = "media_asset_id"
         const val KEY_MEDIA_NAME = "media_name"
         const val KEY_MEDIA_URI = "media_uri"
+        const val KEY_MEDIA_POSITION_MS = "media_position_ms"
+        const val KEY_MEDIA_DURATION_MS = "media_duration_ms"
     }
 }
-

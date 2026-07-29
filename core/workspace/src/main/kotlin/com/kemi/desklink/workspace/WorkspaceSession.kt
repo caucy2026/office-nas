@@ -10,6 +10,9 @@ data class WorkspaceSession(
     val selectionVersion: Long = 0L,
     val media: MediaRef? = null,
     val playback: PlaybackState = PlaybackState.IDLE,
+    /** Position is intentionally separate from [MediaRef]; a shared URI is not a bookmark. */
+    val mediaPositionMs: Long = 0L,
+    val mediaDurationMs: Long = 0L,
     val mediaWasPlayingBeforeVoice: Boolean = false,
     val voice: VoiceSession? = null,
 )

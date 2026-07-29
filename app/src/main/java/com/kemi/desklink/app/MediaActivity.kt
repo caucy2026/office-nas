@@ -1,10 +1,13 @@
 package com.kemi.desklink.app
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.SurfaceHolder
@@ -20,8 +23,11 @@ import com.kemi.desklink.media.LibVlcMediaEngine
 import com.kemi.desklink.media.MediaEngine
 import com.kemi.desklink.media.PlatformMediaEngine
 import com.kemi.desklink.platform.DisplayRouter
+import com.kemi.desklink.platform.MediaLibraryRepository
 import com.kemi.desklink.platform.VoiceMediaCoordinator
 import com.kemi.desklink.platform.WorkspaceRepository
+import com.kemi.desklink.workspace.MediaHistoryEntry
+import com.kemi.desklink.workspace.MediaHistoryPolicy
 import com.kemi.desklink.workspace.MediaRef
 import com.kemi.desklink.workspace.PlaybackState
 import com.kemi.desklink.workspace.WorkspaceCoordinator
@@ -36,16 +42,30 @@ class MediaActivity : Activity() {
     private lateinit var stateLabel: TextView
     private lateinit var sourceLabel: TextView
     private lateinit var playButton: Button
+    private lateinit var favoriteButton: Button
     private lateinit var videoContainer: FrameLayout
     private var vlcVideoLayout: VLCVideoLayout? = null
     private lateinit var repository: WorkspaceRepository
+    private lateinit var mediaLibraryRepository: MediaLibraryRepository
     private lateinit var voiceMediaCoordinator: VoiceMediaCoordinator
     private lateinit var mediaEngine: MediaEngine
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val progressTicker = object : Runnable {
+        override fun run() {
+            if (!isFinishing && ::mediaEngine.isInitialized &&
+                mediaEngine.isPrepared && WorkspaceCoordinator.snapshot().playback == PlaybackState.PLAYING
+            ) {
+                persistProgress()
+                progressHandler.postDelayed(this, PROGRESS_PERSIST_INTERVAL_MS)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         repository = WorkspaceRepository(this)
+        mediaLibraryRepository = MediaLibraryRepository(this)
         WorkspaceCoordinator.restore(repository.load())
         voiceMediaCoordinator = VoiceMediaCoordinator(
             context = this,
@@ -68,8 +88,15 @@ class MediaActivity : Activity() {
     }
 
     override fun onDestroy() {
+        persistProgress()
+        progressHandler.removeCallbacks(progressTicker)
         mediaEngine.release()
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        persistProgress()
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -154,6 +181,15 @@ class MediaActivity : Activity() {
             text = "选择本地视频"
             setOnClickListener(::pickLocalVideo)
         })
+        favoriteButton = Button(context).apply {
+            text = "收藏当前媒体"
+            setOnClickListener { toggleFavorite() }
+        }
+        addView(favoriteButton)
+        addView(Button(context).apply {
+            text = "最近播放"
+            setOnClickListener { showRecentMedia() }
+        })
         playButton = Button(context).apply {
             text = "播放"
             setOnClickListener { togglePlayback() }
@@ -173,20 +209,14 @@ class MediaActivity : Activity() {
 
     private fun selectLocalMedia(uri: Uri) {
         val title = uri.lastPathSegment?.substringAfterLast('/') ?: "本地视频"
-        val session = WorkspaceCoordinator.update {
-            it.copy(
-                media = MediaRef(
-                    provider = PROVIDER_LOCAL,
-                    assetId = uri.toString(),
-                    displayName = title,
-                    uri = uri.toString(),
-                ),
-                playback = PlaybackState.IDLE,
-            )
-        }
-        persistAndRender(session)
-        sourceLabel.text = "正在准备：$title"
-        mediaEngine.load(uri)
+        openMedia(
+            MediaRef(
+                provider = PROVIDER_LOCAL,
+                assetId = uri.toString(),
+                displayName = title,
+                uri = uri.toString(),
+            ),
+        )
     }
 
     private fun restoreMediaIfPresent() {
@@ -196,18 +226,41 @@ class MediaActivity : Activity() {
             clearMedia("上次本地视频已不可访问，请重新选择")
             return
         }
-        sourceLabel.text = "恢复：${media.displayName}"
-        mediaEngine.load(uri)
+        openMedia(media, restoring = true)
     }
 
     private fun onMediaPrepared() {
-        sourceLabel.text = "已准备：${WorkspaceCoordinator.snapshot().media?.displayName ?: "本地视频"}"
-        val session = WorkspaceCoordinator.update { it.copy(playback = PlaybackState.PAUSED) }
+        val media = WorkspaceCoordinator.snapshot().media ?: return
+        val history = mediaLibraryRepository.find(media)
+        val rememberedPosition = maxOf(
+            WorkspaceCoordinator.snapshot().mediaPositionMs,
+            MediaHistoryPolicy.resumablePosition(history),
+        )
+        if (rememberedPosition > 0L) mediaEngine.seekTo(rememberedPosition)
+        val duration = mediaEngine.durationMs
+        val session = WorkspaceCoordinator.update {
+            it.copy(
+                playback = PlaybackState.PAUSED,
+                mediaPositionMs = rememberedPosition,
+                mediaDurationMs = duration,
+            )
+        }
         persistAndRender(session)
+        mediaLibraryRepository.record(media, rememberedPosition, duration)
+        sourceLabel.text = buildString {
+            append("已准备：${media.displayName}")
+            if (rememberedPosition > 0L) append(" · 从 ${formatTime(rememberedPosition)} 续播")
+        }
     }
 
     private fun onMediaCompleted() {
-        persistAndRender(WorkspaceCoordinator.update { it.copy(playback = PlaybackState.PAUSED) })
+        val media = WorkspaceCoordinator.snapshot().media
+        val duration = mediaEngine.durationMs
+        val session = WorkspaceCoordinator.update {
+            it.copy(playback = PlaybackState.PAUSED, mediaPositionMs = 0L, mediaDurationMs = duration)
+        }
+        if (media != null) mediaLibraryRepository.record(media, 0L, duration)
+        persistAndRender(session)
     }
 
     private fun showPlaybackError(message: String) {
@@ -219,9 +272,9 @@ class MediaActivity : Activity() {
         sourceLabel.text = message
         val session = WorkspaceCoordinator.update {
             if (it.media != null) {
-                it.copy(media = null, playback = PlaybackState.IDLE)
+                it.copy(media = null, playback = PlaybackState.IDLE, mediaPositionMs = 0L, mediaDurationMs = 0L)
             } else {
-                it.copy(playback = PlaybackState.IDLE)
+                it.copy(playback = PlaybackState.IDLE, mediaPositionMs = 0L, mediaDurationMs = 0L)
             }
         }
         persistAndRender(session)
@@ -251,6 +304,72 @@ class MediaActivity : Activity() {
         persistAndRender(next)
     }
 
+    private fun openMedia(media: MediaRef, restoring: Boolean = false) {
+        val uri = Uri.parse(media.uri)
+        if (media.provider == PROVIDER_LOCAL && !isReadable(uri)) {
+            clearMedia("本地视频已不可访问，请重新选择")
+            return
+        }
+        val history = mediaLibraryRepository.find(media)
+        val resumePosition = maxOf(
+            if (restoring) WorkspaceCoordinator.snapshot().mediaPositionMs else 0L,
+            MediaHistoryPolicy.resumablePosition(history),
+        )
+        val session = WorkspaceCoordinator.update {
+            it.copy(
+                media = media,
+                playback = PlaybackState.IDLE,
+                mediaPositionMs = resumePosition,
+                mediaDurationMs = history?.durationMs ?: 0L,
+            )
+        }
+        persistAndRender(session)
+        sourceLabel.text = "正在准备：${media.displayName}"
+        mediaEngine.load(uri)
+    }
+
+    private fun toggleFavorite() {
+        val media = WorkspaceCoordinator.snapshot().media
+        if (media == null) {
+            sourceLabel.text = "请先打开一个媒体再收藏"
+            return
+        }
+        mediaLibraryRepository.toggleFavorite(media)
+        renderFavoriteButton(media)
+    }
+
+    private fun showRecentMedia() {
+        val entries = mediaLibraryRepository.load()
+        if (entries.isEmpty()) {
+            sourceLabel.text = "还没有播放记录"
+            return
+        }
+        val labels = entries.map(::historyLabel).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("最近播放")
+            .setItems(labels) { _, index -> openHistoryEntry(entries[index]) }
+            .show()
+    }
+
+    private fun openHistoryEntry(entry: MediaHistoryEntry) {
+        openMedia(entry.media)
+    }
+
+    private fun persistProgress() {
+        if (!::mediaEngine.isInitialized || !mediaEngine.isPrepared) return
+        val media = WorkspaceCoordinator.snapshot().media ?: return
+        val position = mediaEngine.currentPositionMs
+        val duration = mediaEngine.durationMs
+        val current = WorkspaceCoordinator.snapshot()
+        if (current.mediaPositionMs == position && current.mediaDurationMs == duration) return
+        val session = WorkspaceCoordinator.update {
+            it.copy(mediaPositionMs = position, mediaDurationMs = duration)
+        }
+        repository.save(session)
+        mediaLibraryRepository.record(media, position, duration)
+        renderSession(session)
+    }
+
     private fun persistAndRender(session: WorkspaceSession) {
         repository.save(session)
         if (::mediaEngine.isInitialized) {
@@ -259,12 +378,44 @@ class MediaActivity : Activity() {
                 PlaybackState.PAUSED, PlaybackState.IDLE -> mediaEngine.pause()
             }
         }
+        if (session.playback == PlaybackState.PLAYING) {
+            progressHandler.removeCallbacks(progressTicker)
+            progressHandler.postDelayed(progressTicker, PROGRESS_PERSIST_INTERVAL_MS)
+        } else {
+            progressHandler.removeCallbacks(progressTicker)
+        }
+        renderSession(session)
+        session.media?.let(::renderFavoriteButton)
+        if (session.media == null && ::favoriteButton.isInitialized) favoriteButton.text = "收藏当前媒体"
+        Log.i(TAG, "Workspace playback=${session.playback}, voice=${session.voice?.state}")
+    }
+
+    private fun renderSession(session: WorkspaceSession) {
         if (::stateLabel.isInitialized) {
             val voice = session.voice?.state?.name ?: "IDLE"
             stateLabel.text = "D${DisplayRouter.currentDisplayId(this)} · 媒体：${session.playback} · 语音：$voice"
             playButton.text = if (session.playback == PlaybackState.PLAYING) "暂停" else "播放"
         }
-        Log.i(TAG, "Workspace playback=${session.playback}, voice=${session.voice?.state}")
+    }
+
+    private fun renderFavoriteButton(media: MediaRef) {
+        if (::favoriteButton.isInitialized) {
+            favoriteButton.text = if (mediaLibraryRepository.isFavorite(media)) "取消收藏" else "收藏当前媒体"
+        }
+    }
+
+    private fun historyLabel(entry: MediaHistoryEntry): String = buildString {
+        if (entry.isFavorite) append("★ ")
+        append(entry.media.displayName)
+        val resume = MediaHistoryPolicy.resumablePosition(entry)
+        if (resume > 0L) append(" · ${formatTime(resume)}")
+    }
+
+    private fun formatTime(positionMs: Long): String {
+        val totalSeconds = positionMs.coerceAtLeast(0L) / 1_000L
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%d:%02d".format(minutes, seconds)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -273,6 +424,7 @@ class MediaActivity : Activity() {
         private const val TAG = "DeskLink.Media"
         private const val REQUEST_PICK_LOCAL_VIDEO = 20
         private const val PROVIDER_LOCAL = "local"
+        private const val PROGRESS_PERSIST_INTERVAL_MS = 5_000L
 
         fun newIntent(context: Context): Intent = Intent(context, MediaActivity::class.java)
     }
