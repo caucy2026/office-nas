@@ -91,7 +91,7 @@
 
 ## 当前立即行动项
 
-1. 在 Linux 构建节点固定 Collabora engine/Android 上游提交，产出 arm64 APK 并在 KEMI 冒烟。
+1. 将 `Collabora Android smoke` 推送到 GitHub 后，先用 `preflight` 解析 Gerrit 的实际提交，再以其 40 位 SHA 触发 `assemble`，产出 arm64 APK 并在 KEMI 冒烟。详见 [GitHub Actions 构建记录](validation/p2-github-actions-build.md)。
 2. 提供一套不含生产凭据的 SMB/NFS 测试样片，完成 P3 网络协议、断连与重连验收。
 3. 将 NAS 凭据接入 Android Keystore；继续禁止其进入 `WorkspaceSession`、日志和 URI。
 4. 使用真实 KEMI 语音 IME 做一次“播放 → 语音 → 暂停 → 结束 → 恢复”的人工验收。

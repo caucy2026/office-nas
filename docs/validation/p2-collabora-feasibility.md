@@ -37,7 +37,7 @@ DeskLink MediaActivity（已有，D2）
 
 ## 下一道必须通过的门
 
-在 Linux 构建节点完成以下冒烟，全部通过才开始写 `OfficeAdapter`：
+在 Linux 构建节点完成以下冒烟，全部通过才开始写 `OfficeAdapter`。GitHub Linux Runner 的分工、版本固定和触发方式详见 [GitHub Actions 构建记录](p2-github-actions-build.md)：
 
 1. 固定上游提交和 NDK/SDK 版本，产出仅 `arm64-v8a` 的 APK。
 2. 安装到 `192.168.1.10:5555`；确认文档编辑 UI 固定在 D0，不创建 D2 Office 窗口。
