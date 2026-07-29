@@ -19,11 +19,12 @@
 在 GitHub 仓库的 **Actions → Collabora Android smoke → Run workflow** 中选择：
 
 ```text
-source_ref = 673f94ffc1ed291e9245ee0cbdea4f685a73c56e
+source_ref = refs/tags/25.04.7-mobile
+expected_source_sha = 673f94ffc1ed291e9245ee0cbdea4f685a73c56e
 mode       = preflight
 ```
 
-该任务会在 Gerrit 单仓库中检出官方 `25.04.7-mobile` 发布标签对应的 immutable SHA，确认 `engine/` 和 `android/` 都存在，安装 Android r27 LTS NDK `27.3.13750724`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
+该任务会先按 Gerrit 官方 `25.04.7-mobile` 发布 tag 做浅抓取，再强制校验其结果等于 `expected_source_sha`；这既适配 Gerrit 对 bare SHA 浅抓取的限制，也保证不可变构建来源。随后确认 `engine/` 和 `android/` 都存在，安装 Android r27 LTS NDK `27.3.13750724`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
 
 Collabora engine 的实际 configure 会拒绝 NDK r23；因此 CI 以当前 Android 官方 r27 LTS 固定版本为准，旧官方页面示例只作历史参考。core configure 同时采用官方 Android 发布示例的 `--disable-ccache`，避免 ccache 参数直接落到 clang。
 
@@ -37,7 +38,7 @@ Gerrit 源码只浅抓取请求的一个 ref，并设置 20 分钟连接/传输�
 
 如果构建机只有 Git SSH 权限、没有 GitHub API Token，也可显式推送名为 `collabora-preflight-*` 的标签；它只会以 `refs/heads/main` 执行同样的预检。普通 `main` 提交不会触发它。这个标签入口只适用于预检，完整构建仍必须通过手动工作流输入固定 SHA。
 
-当前 mobile 候选为官方 Gerrit 标签 `25.04.7-mobile` 对应的 `673f94ffc1ed291e9245ee0cbdea4f685a73c56e`；不要退回只含 Android 壳的 GitHub 镜像，也不要将 main 预检失败外推到 mobile release。若主动升级上游，先对新 ref 重新做预检，再用其产出的 SHA 固定完整构建。
+当前 mobile 候选为官方 Gerrit 标签 `25.04.7-mobile` 对应的 `673f94ffc1ed291e9245ee0cbdea4f685a73c56e`；不要退回只含 Android 壳的 GitHub 镜像，也不要将 main 预检失败外推到 mobile release。若主动升级上游，必须同时更新 tag/ref 和预先核验的 40 位 SHA，再以二者触发预检。
 
 ## 第二次执行：固定版本构建
 

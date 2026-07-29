@@ -7,7 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: "Gerrit 40-character source SHA. Defaults to the fixed official mobile release source."
+        description: "Gerrit release tag or ref. It is checked against expected_source_sha after checkout."
+        required: true
+        default: "refs/tags/25.04.7-mobile"
+        type: string
+      expected_source_sha:
+        description: "Required 40-character commit SHA expected after resolving source_ref."
         required: true
         default: "673f94ffc1ed291e9245ee0cbdea4f685a73c56e"
         type: string
@@ -37,9 +42,10 @@ jobs:
       ABI: arm64-v8a
       # Collabora's current engine configure rejects r23; use Android's r27 LTS line.
       NDK_VERSION: 27.3.13750724
-      # The official 25.04.7 Android mobile release tag resolves to this immutable
-      # SHA. A protected tag can start the low-cost preflight without a REST token.
-      SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || '673f94ffc1ed291e9245ee0cbdea4f685a73c56e' }}
+      # Gerrit accepts a shallow fetch by advertised tag/ref but can reject a bare
+      # SHA. Checkout is therefore verified against this immutable SHA afterwards.
+      SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || 'refs/tags/25.04.7-mobile' }}
+      EXPECTED_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_source_sha || '673f94ffc1ed291e9245ee0cbdea4f685a73c56e' }}
       BUILD_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'preflight' }}
       COLLABORA_ROOT: ${{ github.workspace }}/.work/collabora-office
       ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
@@ -99,15 +105,22 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p "$(dirname "$COLLABORA_ROOT")"
-          # A preflight needs one ref, not the monorepo's whole Git history.
+          # A preflight needs one advertised ref, not the monorepo's whole Git history.
           # `timeout` avoids a stalled Gerrit connection consuming the six-hour job.
           git init --initial-branch=bootstrap "$COLLABORA_ROOT"
           git -C "$COLLABORA_ROOT" remote add origin https://gerrit.collaboraoffice.com/online
-          timeout 1200 git -C "$COLLABORA_ROOT" fetch --depth=1 origin "$SOURCE_REF"
+          if ! timeout 1200 git -C "$COLLABORA_ROOT" fetch --depth=1 origin "$SOURCE_REF"; then
+            printf '::error title=Collabora source fetch::Unable to fetch advertised ref %s from Gerrit\n' "$SOURCE_REF"
+            exit 1
+          fi
           git -C "$COLLABORA_ROOT" checkout --detach FETCH_HEAD
           test -d "$COLLABORA_ROOT/engine"
           test -d "$COLLABORA_ROOT/android"
           source_sha="$(git -C "$COLLABORA_ROOT" rev-parse HEAD)"
+          if [[ "$source_sha" != "$EXPECTED_SOURCE_SHA" ]]; then
+            printf '::error title=Collabora source verification::Resolved %s, expected %s\n' "$source_sha" "$EXPECTED_SOURCE_SHA"
+            exit 1
+          fi
           printf 'source_ref=%s\nsource_sha=%s\nabi=%s\nndk=%s\nmode=%s\n' \
             "$SOURCE_REF" "$source_sha" "$ABI" "$NDK_VERSION" "$BUILD_MODE" \
             | tee "$GITHUB_WORKSPACE/collabora-build-metadata.txt"
