@@ -17,7 +17,7 @@ P2 暂时**不进入代码集成**。原选定的 ONLYOFFICE Android 上游 `ONL
 
 因此，没有将任何 Office 上游代码、二进制或未经固定版本的依赖加入 DeskLink。
 
-## 解除条件
+## 原 ONLYOFFICE 方案的解除条件
 
 任选其一后才能恢复 P2：
 
@@ -26,3 +26,6 @@ P2 暂时**不进入代码集成**。原选定的 ONLYOFFICE Android 上游 `ONL
 
 恢复后必须按 P2 原计划在隔离目录构建、安装、验证 KEMI `InputConnection`，再决定是否进入 `features:office`。不能以网页缓存、APK 逆向或手工复制文件代替该步骤。
 
+## 替代路径
+
+已启动 [Collabora 可行性验证](p2-collabora-feasibility.md)。它不依赖已经失效的 ONLYOFFICE Git 地址，但尚未进入 DeskLink 代码集成。

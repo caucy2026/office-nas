@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`P3b 已完成可演示闭环`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 本地/网络 URI 播放均已实现。`LibVLC 3.6.5` 已在目标设备真实解码并显示公开 HLS；D0 可安全提交无凭据的 SMB、NFS、UPnP、HTTP(S)、RTSP URI。P3 的 NAS 浏览、Keystore 凭据、实际 SMB/NFS 样片和长测仍在后续范围。P2 Office 仍被官方候选上游 404 阻塞。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md)、[P3a](docs/validation/p3a-local-media.md) 与 [P3b](docs/validation/p3b-libvlc-network.md) 记录。
+`P3b 已完成可演示闭环`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 本地/网络 URI 播放均已实现。`LibVLC 3.6.5` 已在目标设备真实解码并显示公开 HLS；D0 可安全提交无凭据的 SMB、NFS、UPnP、HTTP(S)、RTSP URI。P3 的 NAS 浏览、Keystore 凭据、实际 SMB/NFS 样片和长测仍在后续范围。P2 已从失效的 ONLYOFFICE 地址切换到 [Collabora Office 可行性验证](docs/validation/p2-collabora-feasibility.md)：源码与 Android 壳可访问，但完整原生构建必须先在 Linux 节点冒烟。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md)、[P3a](docs/validation/p3a-local-media.md) 与 [P3b](docs/validation/p3b-libvlc-network.md) 记录。
 
 ## 目录规划
 

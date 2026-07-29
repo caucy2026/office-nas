@@ -29,9 +29,9 @@
 
 ## P2：Office 技术接入验证
 
-> **状态（2026-07-29）：外部阻塞。** 原定 ONLYOFFICE Android 官方候选 URL 当前页面、Git 源码查询与源码归档均返回 404；搜索索引为旧缓存，不能作为依赖依据。未复制任何上游代码，详见 [P2 验证记录](validation/p2-office-upstream.md)。
+> **状态（2026-07-29）：替代上游已选定，等待 Linux 冒烟。** 原定 ONLYOFFICE Android 官方 Git 地址不可访问；已验证 Collabora Office 官方 Android 壳和发布物存在。它要求先构建 LibreOffice 原生 engine，因此 P2 的下一门是 Linux / arm64 构建与 KEMI 真机冒烟，不在当前 Android 工程中盲目接入。详见 [ONLYOFFICE 记录](validation/p2-office-upstream.md) 和 [Collabora 可行性记录](validation/p2-collabora-feasibility.md)。
 
-**目标：** 独立构建并验证 ONLYOFFICE Android 的可集成方式；不把“能拉到源码”误判为“可交付”。
+**目标：** 独立构建并验证 Collabora Office Android 的可集成方式；不把“能拉到源码”误判为“可交付”。
 
 - 固定上游 commit/tag，建立可重复的构建说明。
 - 优先验证本地 DOCX、XLSX、PPTX 打开与编辑，PDF 打开、检索与批注。
@@ -91,7 +91,7 @@
 
 ## 当前立即行动项
 
-1. 为 P2 提供可审计的 Office 上游归档、commit 或许可兼容的替代项目。
+1. 在 Linux 构建节点固定 Collabora engine/Android 上游提交，产出 arm64 APK 并在 KEMI 冒烟。
 2. 提供一套不含生产凭据的 SMB/NFS 测试样片，完成 P3 网络协议、断连与重连验收。
 3. 将 NAS 凭据接入 Android Keystore；继续禁止其进入 `WorkspaceSession`、日志和 URI。
 4. 使用真实 KEMI 语音 IME 做一次“播放 → 语音 → 暂停 → 结束 → 恢复”的人工验收。
