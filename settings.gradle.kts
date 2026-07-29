@@ -17,5 +17,6 @@ dependencyResolutionManagement {
 rootProject.name = "KEMI DeskLink"
 include(":app")
 include(":core:platform")
+include(":core:reference")
 include(":core:workspace")
 include(":features:media")

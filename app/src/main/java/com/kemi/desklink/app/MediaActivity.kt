@@ -27,6 +27,7 @@ import com.kemi.desklink.platform.DisplayRouter
 import com.kemi.desklink.platform.MediaLibraryRepository
 import com.kemi.desklink.platform.VoiceMediaCoordinator
 import com.kemi.desklink.platform.WorkspaceRepository
+import com.kemi.desklink.reference.ReferenceService
 import com.kemi.desklink.workspace.MediaHistoryEntry
 import com.kemi.desklink.workspace.MediaHistoryPolicy
 import com.kemi.desklink.workspace.MediaPlaybackEngine
@@ -128,7 +129,7 @@ class MediaActivity : Activity() {
         setBackgroundColor(0xFF101820.toInt())
 
         addView(TextView(context).apply {
-            text = "KEMI DeskLink · 副屏媒体 P3b"
+            text = "KEMI DeskLink · 副屏媒体 P4"
             textSize = 23f
             setTextColor(0xFFFFFFFF.toInt())
         })
@@ -155,24 +156,45 @@ class MediaActivity : Activity() {
             setPadding(0, dp(10), 0, dp(6))
         }
         addView(stateLabel)
-        addView(Button(context).apply {
+        val controls = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        fun addControlRow(vararg buttons: Button) {
+            controls.addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                buttons.forEach { button ->
+                    addView(button, LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f,
+                    ))
+                }
+            })
+        }
+        val pickButton = Button(context).apply {
             text = "选择本地视频"
             setOnClickListener(::pickLocalVideo)
-        })
+        }
+        val referenceButton = Button(context).apply {
+            text = "引用当前时刻到主屏"
+            setOnClickListener { insertCurrentTimeReference() }
+        }
         favoriteButton = Button(context).apply {
             text = "收藏当前媒体"
             setOnClickListener { toggleFavorite() }
         }
-        addView(favoriteButton)
-        addView(Button(context).apply {
+        val recentButton = Button(context).apply {
             text = "最近播放"
             setOnClickListener { showRecentMedia() }
-        })
+        }
         playButton = Button(context).apply {
             text = "播放"
             setOnClickListener { togglePlayback() }
         }
-        addView(playButton)
+        addControlRow(pickButton, referenceButton)
+        addControlRow(favoriteButton, recentButton)
+        addControlRow(playButton)
+        addView(controls)
     }
 
     private fun pickLocalVideo(view: View) {
@@ -383,6 +405,30 @@ class MediaActivity : Activity() {
         }
         mediaLibraryRepository.toggleFavorite(media)
         renderFavoriteButton(media)
+    }
+
+    private fun insertCurrentTimeReference() {
+        val media = WorkspaceCoordinator.snapshot().media
+        if (media == null || !mediaEngine.isPrepared) {
+            sourceLabel.text = "请先准备可播放的视频再引用"
+            return
+        }
+        val position = mediaEngine.currentPositionMs
+        val markdown = runCatching { ReferenceService.markdownLink(media, position) }
+            .getOrElse {
+                Log.w(TAG, "Unable to create media reference", it)
+                sourceLabel.text = "当前媒体不能生成引用"
+                return
+            }
+        val session = WorkspaceCoordinator.update {
+            it.copy(
+                draftText = ReferenceService.appendToDraft(it.draftText, markdown),
+                selectionVersion = it.selectionVersion + 1,
+            )
+        }
+        repository.save(session)
+        sendBroadcast(Intent(OfficeActivity.ACTION_REFERENCE_INSERTED).setPackage(packageName))
+        sourceLabel.text = "已插入主屏：${ReferenceService.displayText(media, position)}"
     }
 
     private fun showRecentMedia() {

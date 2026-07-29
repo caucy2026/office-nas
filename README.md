@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`P3c 已完成媒体库基础闭环`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 本地/网络 URI 播放路由均已实现。本地 DocumentsUI `content://` 文件使用 Android 平台播放器；网络 SMB、NFS、UPnP、HTTP(S)、RTSP URI 使用 `LibVLC 3.6.5`，后者已在目标设备真实解码公开 HLS。D2 已具备最近播放、收藏和断点状态持久化。P3 的修复版本地可 seek VOD 真机续播、NAS 浏览、Keystore 凭据、实际 SMB/NFS 样片和长测仍在后续范围。P2 已从失效的 ONLYOFFICE 地址切换到 [Collabora Office 可行性验证](docs/validation/p2-collabora-feasibility.md)：源码已固定并在 GitHub Linux Runner 验证原生配置，尚未进入 DeskLink 集成。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md)、[P3a](docs/validation/p3a-local-media.md)、[P3b](docs/validation/p3b-libvlc-network.md) 与 [P3c](docs/validation/p3c-media-library.md) 记录。
+`P3c 已完成媒体库基础闭环，P4 已实现引用核心`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 本地/网络 URI 播放路由均已实现。本地 DocumentsUI `content://` 文件使用 Android 平台播放器；网络 SMB、NFS、UPnP、HTTP(S)、RTSP URI 使用 `LibVLC 3.6.5`，后者已在目标设备真实解码公开 HLS。D2 已具备最近播放、收藏、断点状态持久化及“当前时刻 → D0 临时草稿”的可读深链。P3 的修复版本地可 seek VOD 真机续播、NAS 浏览、Keystore 凭据、实际 SMB/NFS 样片和长测仍在后续范围；P4 还需要 Collabora `OfficeAdapter` 将同一引用写入真实 Office 文档选区。P2 已从失效的 ONLYOFFICE 地址切换到 [Collabora Office 可行性验证](docs/validation/p2-collabora-feasibility.md)：源码已固定并在 GitHub Linux Runner 验证原生配置，尚未进入 DeskLink 集成。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md)、[P3a](docs/validation/p3a-local-media.md)、[P3b](docs/validation/p3b-libvlc-network.md)、[P3c](docs/validation/p3c-media-library.md) 与 [P4](docs/validation/p4-time-reference.md) 记录。
 
 ## 目录规划
 

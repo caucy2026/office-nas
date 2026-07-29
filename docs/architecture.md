@@ -46,7 +46,7 @@
 | `core:workspace` | `WorkspaceSession`、持久化、跨屏事件 | 渲染 UI |
 | `core:reference` | 视频时间点引用、解析、跳转协议 | 直接编辑 Office 文件压缩包 |
 | `features:office` | 文档打开、编辑器桥接、选区及链接插入 | NAS 浏览和播放器控制 |
-| `features:media` | `MediaEngine` 播放/seek 接口；P3b/P3c 的 LibVLC 适配器处理本地与网络 URI，平台播放器仅作本地兜底 | 文档编辑实现、NAS 凭据持久化 |
+| `features:media` | `MediaEngine` 播放/seek 接口；Android 平台播放器处理本地 `content://`，LibVLC 处理网络 URI | 文档编辑实现、NAS 凭据持久化 |
 
 ## 4. 核心状态模型
 
@@ -79,7 +79,7 @@ data class VoiceSession(
 )
 ```
 
-`selectionVersion` 防止发生这种错误：用户启动语音后又移动了文档光标，旧的语音结果仍插入到错误位置。若版本不一致，平台层不进行自动补写，交由编辑器或用户确认。
+`selectionVersion` 防止发生这种错误：用户启动语音后又移动了文档光标，旧的语音结果仍插入到错误位置。若版本不一致，平台层不进行自动补写，交由编辑器或用户确认。P4 的临时 `EditText` 降级方案只能追加引用文本；Collabora 的 `OfficeAdapter` 接入后必须以该版本号校验真实文档选区。
 
 ## 5. 语音与音频状态机
 
@@ -107,8 +107,8 @@ kemi-desklink://media/{provider}/{assetId}?t={positionMs}
 显示给用户的文案为“《维修演示.mp4》 00:12:43”。插入过程：
 
 1. D2 读取当前媒体 ID 和播放位置。
-2. `ReferenceService` 生成稳定 URI 与显示文案。
-3. `OfficeAdapter` 用引擎提供的插入超链接/批注能力写到当前选区。
+2. `ReferenceService` 生成稳定 URI 与显示文案；provider 和 asset id 被 URL-safe Base64 编入路径，避免 URI 分隔符歧义。
+3. P4 临时编辑器追加可读 Markdown 链接；`OfficeAdapter` 到位后用引擎提供的插入超链接/批注能力写到当前选区。
 4. 用户点击链接时，D2 激活同一 `MediaRef` 并 seek 到 `t`。
 
 若 Office 引擎第一期没有可靠的写入扩展 API，MVP 只实现“复制引用文本”和“从应用内引用面板跳转”；不要用破坏文档兼容性的临时写法。

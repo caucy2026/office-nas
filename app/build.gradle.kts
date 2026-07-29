@@ -33,6 +33,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:platform"))
+    implementation(project(":core:reference"))
     implementation(project(":core:workspace"))
     implementation(project(":features:media"))
 }

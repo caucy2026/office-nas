@@ -2,6 +2,11 @@ package com.kemi.desklink.app
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -26,6 +31,18 @@ class OfficeActivity : Activity() {
     private lateinit var editor: EditText
     private lateinit var displayStatus: TextView
     private lateinit var repository: WorkspaceRepository
+    private var referenceReceiverRegistered = false
+    private val referenceReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != ACTION_REFERENCE_INSERTED || !::editor.isInitialized) return
+            val draft = WorkspaceCoordinator.snapshot().draftText
+            if (editor.text.toString() != draft) {
+                editor.setText(draft)
+                editor.setSelection(editor.length())
+            }
+            displayStatus.text = "已插入副屏视频时间点引用；Collabora 接入后将写入实际文档选区"
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +71,27 @@ class OfficeActivity : Activity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        registerReferenceReceiver()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::editor.isInitialized) {
+            val draft = WorkspaceCoordinator.snapshot().draftText
+            if (editor.text.toString() != draft) editor.setText(draft)
+        }
+    }
+
+    override fun onStop() {
+        if (referenceReceiverRegistered) {
+            unregisterReceiver(referenceReceiver)
+            referenceReceiverRegistered = false
+        }
+        super.onStop()
+    }
+
     private fun createContent(): View {
         val padding = dp(20)
         return LinearLayout(this).apply {
@@ -61,7 +99,7 @@ class OfficeActivity : Activity() {
             setPadding(padding, padding, padding, padding)
             setBackgroundColor(0xFFF6F8FC.toInt())
 
-            addView(title("KEMI DeskLink · P3b 双屏工作台"))
+            addView(title("KEMI DeskLink · P4 双屏工作台"))
             displayStatus = TextView(context).apply {
                 text = "主屏 D${DisplayRouter.currentDisplayId(this@OfficeActivity)} · 编辑区已准备 KEMI 语音输入"
                 textSize = 15f
@@ -166,6 +204,18 @@ class OfficeActivity : Activity() {
         repository.save(session)
     }
 
+    private fun registerReferenceReceiver() {
+        if (referenceReceiverRegistered) return
+        val filter = IntentFilter(ACTION_REFERENCE_INSERTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(referenceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(referenceReceiver, filter)
+        }
+        referenceReceiverRegistered = true
+    }
+
     private fun title(value: String) = TextView(this).apply {
         text = value
         textSize = 24f
@@ -174,8 +224,9 @@ class OfficeActivity : Activity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    private companion object {
+    companion object {
         const val TAG = "DeskLink.Office"
+        const val ACTION_REFERENCE_INSERTED = "com.kemi.desklink.action.REFERENCE_INSERTED"
         const val EXTRA_MAIN_DISPLAY_REDIRECT = "main_display_redirect"
     }
 }
