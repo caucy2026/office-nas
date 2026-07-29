@@ -23,6 +23,8 @@ mode       = preflight
 
 该任务会在 Gerrit 单仓库中检出源码，确认 `engine/` 和 `android/` 都存在，安装官方要求的 Android NDK `23.0.7599858`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
 
+如果构建机只有 Git SSH 权限、没有 GitHub API Token，也可显式推送名为 `collabora-preflight-*` 的标签；它只会以 `refs/heads/main` 执行同样的预检。普通 `main` 提交不会触发它。这个标签入口只适用于预检，完整构建仍必须通过手动工作流输入固定 SHA。
+
 如果 Gerrit 的 `main` 路径变化，请在下一次预检中填写其实际 ref；不要退回只含 Android 壳的 GitHub 镜像，也不要为了方便固定一个未在 Gerrit 验证过的 GitHub commit。
 
 ## 第二次执行：固定版本构建
