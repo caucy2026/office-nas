@@ -29,7 +29,7 @@ mode       = preflight
 
 Gerrit 源码只浅抓取请求的一个 ref，并设置 20 分钟连接/传输上限；预检不下载 monorepo 的完整历史。失败时保留配置与元数据，先修复连接或 ref，再开始完整构建。
 
-若 native 配置失败，工作流会将 `engine/config.log` 中与错误相关的脱敏片段及末尾写入 Job Summary，同时保留完整日志 Artifact；无需把 GitHub Token 发到聊天中即可定位依赖问题。
+若 native 配置失败，工作流会将 `engine/autogen.sh` 输出和 `engine/config.log` 中与错误相关的脱敏片段及末尾写入 Job Summary，同时保留完整日志 Artifact；无需把 GitHub Token 发到聊天中即可定位依赖问题。
 
 同一错误的首要单行会作为 GitHub Check Annotation 发布，便于只具 Git SSH 权限的构建机通过公开 Checks API 读取；不需给上游构建任务 `contents: write` 权限。
 

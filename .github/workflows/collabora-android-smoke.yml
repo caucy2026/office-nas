@@ -122,8 +122,12 @@ jobs:
         run: |
           set -euo pipefail
           log="$COLLABORA_ROOT/engine/config.log"
+          autogen_log="$GITHUB_WORKSPACE/out/engine-autogen.log"
           diagnostic=""
-          if [[ -f "$log" ]]; then
+          if [[ -f "$autogen_log" ]]; then
+            diagnostic="$(grep -Ei '(configure: error|error:|failed|missing|not found|unable)' "$autogen_log" | tail -n 1 || true)"
+          fi
+          if [[ -z "$diagnostic" && -f "$log" ]]; then
             diagnostic="$(grep -Ei '(error|failed|missing|not found|unable)' "$log" | tail -n 1 || true)"
             if [[ -z "$diagnostic" ]]; then
               diagnostic="$(tail -n 1 "$log" || true)"
@@ -138,6 +142,11 @@ jobs:
             echo
             echo '```text'
             if [[ -f "$log" ]]; then
+              if [[ -f "$autogen_log" ]]; then
+                echo "--- autogen output ---"
+                grep -Ei '(configure: error|error:|failed|missing|not found|unable)' "$autogen_log" | tail -n 80 || true
+                echo
+              fi
               grep -Ei '(error|failed|missing|not found|unable)' "$log" | tail -n 80 || true
               echo
               echo "--- final config.log lines ---"
@@ -159,6 +168,7 @@ jobs:
           path: |
             collabora-build-metadata.txt
             out/**
+            out/engine-autogen.log
             .work/collabora-office/config.log
             .work/collabora-office/engine/config.log
             .work/collabora-office/android/**/build/reports/**

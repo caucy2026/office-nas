@@ -44,7 +44,7 @@ cat > "$engine_dir/autogen.input" <<EOF
 EOF
 
 pushd "$engine_dir"
-./autogen.sh
+./autogen.sh 2>&1 | tee "$GITHUB_WORKSPACE/out/engine-autogen.log"
 if [[ "$BUILD_MODE" == "assemble" ]]; then
   make -j"$jobs"
 fi
