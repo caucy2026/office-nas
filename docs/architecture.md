@@ -46,7 +46,7 @@
 | `core:workspace` | `WorkspaceSession`、持久化、跨屏事件 | 渲染 UI |
 | `core:reference` | 视频时间点引用、解析、跳转协议 | 直接编辑 Office 文件压缩包 |
 | `features:office` | 文档打开、编辑器桥接、选区及链接插入 | NAS 浏览和播放器控制 |
-| `features:media` | `MediaEngine` 播放接口；P3a 使用系统播放器处理本地文件，后续以 LibVLC 增加 NAS 协议 | 文档编辑实现 |
+| `features:media` | `MediaEngine` 播放接口；P3b 的 LibVLC 适配器处理本地与网络 URI，平台播放器仅作本地兜底 | 文档编辑实现、NAS 凭据持久化 |
 
 ## 4. 核心状态模型
 
@@ -120,7 +120,7 @@ kemi-desklink://media/{provider}/{assetId}?t={positionMs}
 - 4K、高码率 NAS、字幕切换、休眠/拔插屏幕都必须做真机长测。
 - 录像和转码留给 NAS/NVR/SRS 等服务端；客户端先做观看、引用和工作记录。
 
-当前 P3a 已实现本地 `content://` 视频选择、可恢复 URI 和 Android 平台播放器。`MediaEngine` 是明确的替换边界：LibVLC AAR 可复现后，用其实现替换 `PlatformMediaEngine`，再增加 SMB/NFS/UPnP Provider；D2 生命周期、语音协调和工作区模型不需要重写。
+当前 P3b 已固定 `org.videolan.android:libvlc-all:3.6.5`，并用 LibVLC 自带 `VLCVideoLayout` 在 D2 真机输出了公开 HLS 视频帧。D0 只接受不带 `userInfo` 的 `smb`、`nfs`、`upnp`、`http(s)`、`rtsp` URI，避免把 NAS 用户名或密码落入 `WorkspaceRepository`。`MediaEngine` 仍是明确边界：下一步增加 SMB/NFS/UPnP 浏览和 Keystore 凭据 Provider；D2 生命周期、语音协调和工作区模型不需要重写。
 
 ## 8. 安全与隐私
 

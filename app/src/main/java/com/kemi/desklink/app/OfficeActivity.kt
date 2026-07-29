@@ -1,6 +1,7 @@
 package com.kemi.desklink.app
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,8 +12,10 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.kemi.desklink.media.NetworkMediaUri
 import com.kemi.desklink.platform.DisplayRouter
 import com.kemi.desklink.platform.WorkspaceRepository
+import com.kemi.desklink.workspace.MediaRef
 import com.kemi.desklink.workspace.WorkspaceCoordinator
 
 /**
@@ -58,7 +61,7 @@ class OfficeActivity : Activity() {
             setPadding(padding, padding, padding, padding)
             setBackgroundColor(0xFFF6F8FC.toInt())
 
-            addView(title("KEMI DeskLink · P0 双屏验证"))
+            addView(title("KEMI DeskLink · P3b 双屏工作台"))
             displayStatus = TextView(context).apply {
                 text = "主屏 D${DisplayRouter.currentDisplayId(this@OfficeActivity)} · 编辑区已准备 KEMI 语音输入"
                 textSize = 15f
@@ -96,6 +99,11 @@ class OfficeActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { topMargin = dp(12) })
+
+            addView(Button(context).apply {
+                text = "从主屏打开 NAS / 局域网媒体 URI"
+                setOnClickListener { showNetworkMediaDialog() }
+            })
         }
     }
 
@@ -108,6 +116,41 @@ class OfficeActivity : Activity() {
         }
         Log.i(TAG, "Launching MediaActivity on display=$secondaryId")
         DisplayRouter.launchOnDisplay(this, MediaActivity.newIntent(this), secondaryId)
+    }
+
+    private fun showNetworkMediaDialog() {
+        val input = EditText(this).apply {
+            hint = "smb://nas.local/share/video.mp4"
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("打开局域网/流媒体 URI")
+            .setMessage("支持 SMB、NFS、UPnP、HTTP(S)、RTSP。URI 不得包含用户名或密码。")
+            .setView(input)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("发送到副屏") { _, _ -> submitNetworkMedia(input.text.toString()) }
+            .show()
+    }
+
+    private fun submitNetworkMedia(rawUri: String) {
+        NetworkMediaUri.parse(rawUri)
+            .onSuccess { source ->
+                val session = WorkspaceCoordinator.update {
+                    it.copy(
+                        media = MediaRef(
+                            provider = source.provider,
+                            assetId = source.uri,
+                            displayName = source.displayName,
+                            uri = source.uri,
+                        ),
+                    )
+                }
+                repository.save(session)
+                openMediaOnSecondaryDisplay()
+            }
+            .onFailure { error ->
+                displayStatus.text = "媒体 URI 无效：${error.message ?: "未知错误"}"
+            }
     }
 
     private fun persistEditor(text: String) {

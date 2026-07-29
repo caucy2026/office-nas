@@ -43,7 +43,7 @@
 
 ## P3：本地与 NAS 媒体接入
 
-> **P3a 已完成：** 已交付独立 `MediaEngine` 边界和 Android 平台本地视频播放。完整的 LibVLC、SMB/NFS/UPnP Provider 仍等待可复现的 LibVLC 依赖，详见 [P3a 验证记录](validation/p3a-local-media.md)。
+> **P3a/P3b 已完成基础闭环：** 已交付独立 `MediaEngine`、平台本地播放兜底、`LibVLC 3.6.5`、D0 无凭据网络 URI 入口，以及 D2 公开 HLS 真机出画。SMB/NFS/UPnP 浏览、Keystore 凭据、实际 NAS 样片和长测仍未完成，详见 [P3a](validation/p3a-local-media.md) 和 [P3b](validation/p3b-libvlc-network.md) 验证记录。
 
 **目标：** 用 LibVLC 验证播放能力与内容源抽象。
 
@@ -91,7 +91,7 @@
 
 ## 当前立即行动项
 
-1. 创建 Android Kotlin 多模块空工程和最小 CI。
-2. 在目标设备验证 D0/D2 两个 Activity 与 KEMI 语音提交。
-3. 用只读分支分别构建 ONLYOFFICE Android、VLC Android，记录构建成本和许可清单。
-4. 仅当 P0 通过后，再开始任何一个上游项目的适配工作。
+1. 为 P2 提供可审计的 Office 上游归档、commit 或许可兼容的替代项目。
+2. 提供一套不含生产凭据的 SMB/NFS 测试样片，完成 P3 网络协议、断连与重连验收。
+3. 将 NAS 凭据接入 Android Keystore；继续禁止其进入 `WorkspaceSession`、日志和 URI。
+4. 使用真实 KEMI 语音 IME 做一次“播放 → 语音 → 暂停 → 结束 → 恢复”的人工验收。

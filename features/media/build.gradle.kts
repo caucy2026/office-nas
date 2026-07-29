@@ -23,3 +23,8 @@ kotlin {
     }
 }
 
+dependencies {
+    // MediaEngine's public render-target API uses VLCVideoLayout, so consumers need it too.
+    api("org.videolan.android:libvlc-all:3.6.5")
+    testImplementation(kotlin("test"))
+}

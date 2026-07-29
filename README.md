@@ -29,7 +29,7 @@
 
 ## 当前状态
 
-`P3a 已完成`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 的本地视频选择/播放闭环均已实现并真机验证。实际 KEMI 语音发声保留一项人工验收；P2 Office 被官方候选上游当前 404 阻塞，P3 的 LibVLC/NAS 适配等待可复现依赖。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md) 和 [P3a](docs/validation/p3a-local-media.md) 记录。
+`P3b 已完成可演示闭环`：D0/D2 路由、工作区进程恢复、主屏标准输入、IME/音频协调状态机，以及 D2 本地/网络 URI 播放均已实现。`LibVLC 3.6.5` 已在目标设备真实解码并显示公开 HLS；D0 可安全提交无凭据的 SMB、NFS、UPnP、HTTP(S)、RTSP URI。P3 的 NAS 浏览、Keystore 凭据、实际 SMB/NFS 样片和长测仍在后续范围。P2 Office 仍被官方候选上游 404 阻塞。详见 [P0](docs/validation/p0-device-validation.md)、[P1](docs/validation/p1-workspace-voice.md)、[P2](docs/validation/p2-office-upstream.md)、[P3a](docs/validation/p3a-local-media.md) 与 [P3b](docs/validation/p3b-libvlc-network.md) 记录。
 
 ## 目录规划
 

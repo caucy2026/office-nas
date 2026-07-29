@@ -9,7 +9,7 @@ KEMI DeskLink 计划以 **AGPL-3.0-or-later** 发布，以便在直接集成 AGP
 | 依赖 | 角色 | 许可证风险与处理 |
 | --- | --- | --- |
 | ONLYOFFICE Documents Android | Office/PDF 编辑能力来源 | 上游采用 AGPL 体系。若复制、修改或链接其代码，DeskLink 的发布、对应源码提供和修改说明必须满足 AGPL 要求。固定 commit 并保留 Notices。 |
-| VLC Android / LibVLC | 媒体播放与网络协议能力 | VLC Android 与 LibVLC 的代码/二进制组件许可边界不同，实际启用的模块可能引入 GPL/LGPL 义务。构建时须生成精确组件清单，不能只依据项目首页判断。 |
+| LibVLC `org.videolan.android:libvlc-all:3.6.5` | 当前媒体播放与网络 URI 解码 | 本工程仅声明该 AAR；其 Maven POM 标注 LGPL-2.1。VLC Android 整体应用的 GPL 与此 AAR 不能混同。正式发布前仍须对 AAR 内 native `.so` 与传递依赖生成精确清单并完成许可证核验。 |
 | Jellyfin Android | 可选媒体库 Provider | 仅在启用模块时纳入 Notices 与许可证审查；不应把其品牌、服务条款或服务端要求误写成 DeskLink 的基础能力。 |
 
 ## 必须执行的发布检查
@@ -25,4 +25,3 @@ KEMI DeskLink 计划以 **AGPL-3.0-or-later** 发布，以便在直接集成 AGP
 - 所有上游改动用可审查的 Git patch 或独立 fork 保存，禁止手工复制未记录代码。
 - `features:office` 和 `features:media` 以适配接口隔离上游差异。
 - 升级上游版本必须重新跑构建、设备回归、许可证清单与 Notices 检查。
-

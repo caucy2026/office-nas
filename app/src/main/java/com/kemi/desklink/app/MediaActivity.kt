@@ -13,8 +13,11 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.kemi.desklink.media.LibVlcMediaEngine
+import com.kemi.desklink.media.MediaEngine
 import com.kemi.desklink.media.PlatformMediaEngine
 import com.kemi.desklink.platform.DisplayRouter
 import com.kemi.desklink.platform.VoiceMediaCoordinator
@@ -23,19 +26,21 @@ import com.kemi.desklink.workspace.MediaRef
 import com.kemi.desklink.workspace.PlaybackState
 import com.kemi.desklink.workspace.WorkspaceCoordinator
 import com.kemi.desklink.workspace.WorkspaceSession
+import org.videolan.libvlc.util.VLCVideoLayout
 
 /**
- * D2 media workspace. P3a plays user-picked local videos with Android MediaPlayer.
- * Network providers deliberately remain behind MediaEngine until LibVLC is available.
+ * D2 media workspace. LibVLC receives both local documents and credential-free
+ * network media URIs selected on D0; provider browsing remains a later boundary.
  */
 class MediaActivity : Activity() {
     private lateinit var stateLabel: TextView
     private lateinit var sourceLabel: TextView
     private lateinit var playButton: Button
-    private lateinit var surfaceView: SurfaceView
+    private lateinit var videoContainer: FrameLayout
+    private var vlcVideoLayout: VLCVideoLayout? = null
     private lateinit var repository: WorkspaceRepository
     private lateinit var voiceMediaCoordinator: VoiceMediaCoordinator
-    private lateinit var mediaEngine: PlatformMediaEngine
+    private lateinit var mediaEngine: MediaEngine
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,12 +52,7 @@ class MediaActivity : Activity() {
             targetDisplayId = DisplayRouter.currentDisplayId(this),
             onSessionChanged = ::persistAndRender,
         )
-        mediaEngine = PlatformMediaEngine(
-            context = this,
-            onPrepared = { runOnUiThread(::onMediaPrepared) },
-            onCompleted = { runOnUiThread(::onMediaCompleted) },
-            onError = { message -> runOnUiThread { showPlaybackError(message) } },
-        )
+        mediaEngine = createMediaEngine()
         setContentView(createContent())
         window.decorView.setOnApplyWindowInsetsListener { view, insets ->
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -60,13 +60,23 @@ class MediaActivity : Activity() {
             }
             view.onApplyWindowInsets(insets)
         }
-        restoreLocalMediaIfPresent()
+        videoContainer.post {
+            vlcVideoLayout?.let(mediaEngine::attachVideoLayout)
+            restoreMediaIfPresent()
+        }
         Log.i(TAG, "MediaActivity ready on display=${DisplayRouter.currentDisplayId(this)}")
     }
 
     override fun onDestroy() {
         mediaEngine.release()
         super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        WorkspaceCoordinator.restore(repository.load())
+        restoreMediaIfPresent()
     }
 
     @Suppress("DEPRECATION")
@@ -86,32 +96,48 @@ class MediaActivity : Activity() {
         setBackgroundColor(0xFF101820.toInt())
 
         addView(TextView(context).apply {
-            text = "KEMI DeskLink · 副屏媒体 P3a"
+            text = "KEMI DeskLink · 副屏媒体 P3b"
             textSize = 23f
             setTextColor(0xFFFFFFFF.toInt())
         })
         sourceLabel = TextView(context).apply {
-            text = "请选择本地视频；SMB/NFS/UPnP 将在 LibVLC 依赖可复现后接入"
+            text = "请选择本地视频，或从 D0 发送 SMB/NFS/UPnP/HTTP/RTSP URI"
             textSize = 14f
             setTextColor(0xFFD0D7DE.toInt())
             setPadding(0, dp(8), 0, dp(8))
         }
         addView(sourceLabel)
-        surfaceView = SurfaceView(context).apply {
+        videoContainer = FrameLayout(context).apply {
             setBackgroundColor(0xFF000000.toInt())
-            holder.addCallback(object : SurfaceHolder.Callback {
-                override fun surfaceCreated(holder: SurfaceHolder) {
-                    mediaEngine.attach(holder.surface)
+            if (mediaEngine.usesVlcVideoLayout) {
+                VLCVideoLayout(context).also { layout ->
+                    vlcVideoLayout = layout
+                    addView(layout, FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ))
                 }
+            } else {
+                SurfaceView(context).apply {
+                    holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) {
+                            mediaEngine.attach(holder.surface)
+                        }
 
-                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
 
-                override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    mediaEngine.attach(null)
+                        override fun surfaceDestroyed(holder: SurfaceHolder) {
+                            mediaEngine.attach(null)
+                        }
+                    })
+                    addView(this, FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ))
                 }
-            })
+            }
         }
-        addView(surfaceView, LinearLayout.LayoutParams(
+        addView(videoContainer, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             0,
             1f,
@@ -163,15 +189,14 @@ class MediaActivity : Activity() {
         mediaEngine.load(uri)
     }
 
-    private fun restoreLocalMediaIfPresent() {
+    private fun restoreMediaIfPresent() {
         val media = WorkspaceCoordinator.snapshot().media ?: return
-        if (media.provider != PROVIDER_LOCAL) return
         val uri = Uri.parse(media.uri)
-        if (!isReadable(uri)) {
-            clearInvalidLocalMedia("上次本地视频已不可访问，请重新选择")
+        if (media.provider == PROVIDER_LOCAL && !isReadable(uri)) {
+            clearMedia("上次本地视频已不可访问，请重新选择")
             return
         }
-        sourceLabel.text = "恢复本地视频：${media.displayName}"
+        sourceLabel.text = "恢复：${media.displayName}"
         mediaEngine.load(uri)
     }
 
@@ -187,13 +212,13 @@ class MediaActivity : Activity() {
 
     private fun showPlaybackError(message: String) {
         Log.e(TAG, message)
-        clearInvalidLocalMedia("无法播放该视频，请重新选择")
+        clearMedia("无法播放该视频，请重新选择")
     }
 
-    private fun clearInvalidLocalMedia(message: String) {
+    private fun clearMedia(message: String) {
         sourceLabel.text = message
         val session = WorkspaceCoordinator.update {
-            if (it.media?.provider == PROVIDER_LOCAL) {
+            if (it.media != null) {
                 it.copy(media = null, playback = PlaybackState.IDLE)
             } else {
                 it.copy(playback = PlaybackState.IDLE)
@@ -205,6 +230,15 @@ class MediaActivity : Activity() {
     private fun isReadable(uri: Uri): Boolean = runCatching {
         contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
     }.getOrDefault(false)
+
+    private fun createMediaEngine(): MediaEngine {
+        val prepared = { runOnUiThread(::onMediaPrepared) }
+        val completed = { runOnUiThread(::onMediaCompleted) }
+        val error = { message: String -> runOnUiThread { showPlaybackError(message) } }
+        return runCatching { LibVlcMediaEngine(this, prepared, completed, error) }
+            .onFailure { Log.w(TAG, "LibVLC unavailable; using platform local fallback", it) }
+            .getOrElse { PlatformMediaEngine(this, prepared, completed, error) }
+    }
 
     private fun togglePlayback() {
         if (!mediaEngine.isPrepared) {
