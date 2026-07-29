@@ -19,25 +19,25 @@
 在 GitHub 仓库的 **Actions → Collabora Android smoke → Run workflow** 中选择：
 
 ```text
-source_ref = af7c4b942004777653ddcaa1e79a84dc6c4de5b3
+source_ref = 673f94ffc1ed291e9245ee0cbdea4f685a73c56e
 mode       = preflight
 ```
 
-该任务会在 Gerrit 单仓库中检出源码，确认 `engine/` 和 `android/` 都存在，安装 Android r27 LTS NDK `27.3.13750724`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
+该任务会在 Gerrit 单仓库中检出官方 `25.04.7-mobile` 发布标签对应的 immutable SHA，确认 `engine/` 和 `android/` 都存在，安装 Android r27 LTS NDK `27.3.13750724`，运行 engine 配置，并在日志、Actions 摘要和产物 `collabora-build-metadata.txt` 中记录实际 `source_sha`。预检没有调用 `make`，避免在网络/依赖/路径不通时浪费数小时。
 
-Collabora Gerrit `main` 的实际 configure 会拒绝 NDK r23；因此 CI 以当前 Android 官方 r27 LTS 固定版本为准，旧官方页面示例只作历史参考。
+Collabora engine 的实际 configure 会拒绝 NDK r23；因此 CI 以当前 Android 官方 r27 LTS 固定版本为准，旧官方页面示例只作历史参考。core configure 同时采用官方 Android 发布示例的 `--disable-ccache`，避免 ccache 参数直接落到 clang。
 
 `sdkmanager --licenses` 的输入管道会单独保存 `sdkmanager` 的退出状态；`yes` 在对端正常关闭后产生的 SIGPIPE 不会被误判成 SDK 安装失败。
 
 Gerrit 源码只浅抓取请求的一个 ref，并设置 20 分钟连接/传输上限；预检不下载 monorepo 的完整历史。失败时保留配置与元数据，先修复连接或 ref，再开始完整构建。
 
-若 native 配置失败，工作流会将完整 smoke 脚本输出、`engine/autogen.sh` 输出、`engine/CONF-FOR-BUILD/config.log` 和 `engine/config.log` 中与错误相关的脱敏片段及末尾写入 Job Summary，同时保留完整日志 Artifact；无需把 GitHub Token 发到聊天中即可定位依赖问题。
+若 native 配置失败，工作流会将完整 smoke 脚本输出、`engine/autogen.sh` 输出、`engine/CONF-FOR-BUILD/config.log` 和 `engine/config.log` 中与错误相关的脱敏片段及末尾写入 Job Summary，同时保留完整日志 Artifact。关键错误与最多八条上下文也会作为公开 Check Annotation 发布；无需把 GitHub Token 发到聊天中即可定位首轮依赖问题。
 
 同一错误的首要单行会作为 GitHub Check Annotation 发布，便于只具 Git SSH 权限的构建机通过公开 Checks API 读取；不需给上游构建任务 `contents: write` 权限。
 
 如果构建机只有 Git SSH 权限、没有 GitHub API Token，也可显式推送名为 `collabora-preflight-*` 的标签；它只会以 `refs/heads/main` 执行同样的预检。普通 `main` 提交不会触发它。这个标签入口只适用于预检，完整构建仍必须通过手动工作流输入固定 SHA。
 
-当前验证过的 Gerrit 提交为 `af7c4b942004777653ddcaa1e79a84dc6c4de5b3`；不要退回只含 Android 壳的 GitHub 镜像。若主动升级上游，先对新 ref 重新做预检，再用其产出的 SHA 固定完整构建。
+当前 mobile 候选为官方 Gerrit 标签 `25.04.7-mobile` 对应的 `673f94ffc1ed291e9245ee0cbdea4f685a73c56e`；不要退回只含 Android 壳的 GitHub 镜像，也不要将 main 预检失败外推到 mobile release。若主动升级上游，先对新 ref 重新做预检，再用其产出的 SHA 固定完整构建。
 
 ## 第二次执行：固定版本构建
 

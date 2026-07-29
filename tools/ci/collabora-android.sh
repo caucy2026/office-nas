@@ -55,6 +55,7 @@ cat > "$engine_dir/autogen.input" <<EOF
 --with-android-sdk=$ANDROID_SDK_ROOT
 --with-distro=CPAndroidAarch64
 --with-parallelism=$jobs
+--disable-ccache
 EOF
 
 pushd "$engine_dir"

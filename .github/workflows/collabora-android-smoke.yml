@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: "Gerrit commit SHA or ref. Defaults to the preflight-verified immutable source."
+        description: "Gerrit 40-character source SHA. Defaults to the fixed official mobile release source."
         required: true
-        default: "af7c4b942004777653ddcaa1e79a84dc6c4de5b3"
+        default: "673f94ffc1ed291e9245ee0cbdea4f685a73c56e"
         type: string
       mode:
         description: "preflight validates the real source and configure path; assemble performs the expensive arm64 build."
@@ -35,11 +35,11 @@ jobs:
     timeout-minutes: 360
     env:
       ABI: arm64-v8a
-      # Collabora Gerrit main rejects r23; use Android's r27 LTS line.
+      # Collabora's current engine configure rejects r23; use Android's r27 LTS line.
       NDK_VERSION: 27.3.13750724
-      # A protected tag can start the low-cost preflight without a REST token.
-      # Manual runs may select another immutable ref and the expensive mode.
-      SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || 'af7c4b942004777653ddcaa1e79a84dc6c4de5b3' }}
+      # The official 25.04.7 Android mobile release tag resolves to this immutable
+      # SHA. A protected tag can start the low-cost preflight without a REST token.
+      SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || '673f94ffc1ed291e9245ee0cbdea4f685a73c56e' }}
       BUILD_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'preflight' }}
       COLLABORA_ROOT: ${{ github.workspace }}/.work/collabora-office
       ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
@@ -92,7 +92,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends \
             autoconf automake bison build-essential ccache cmake curl flex gperf git \
             libtool libxml2-dev libxslt1-dev make nasm openjdk-17-jdk pkg-config \
-            python3 python3-dev rsync unzip zip zlib1g-dev
+            python3 python3-dev rsync unzip uuid-dev zip zlib1g-dev
 
       - name: Resolve immutable Collabora source
         shell: bash

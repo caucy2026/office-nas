@@ -7,7 +7,7 @@
 
 | 项目 | 结果 | 证据 |
 | --- | --- | --- |
-| 官方上游 | 可访问 | `CollaboraOnline/online` 的 `distro/collabora/co-25.04-mobile` 分支可直接读取。固定检查提交：`2e18fe10a0045ac445d32a345ac6f5b7cd5298f6`。 |
+| 官方上游 | 可访问 | Gerrit 标签 `25.04.7-mobile` 可解析，固定提交为 `673f94ffc1ed291e9245ee0cbdea4f685a73c56e`。这是 Android mobile 发布来源，不再拿移动分支之外的 `main` 作为构建候选。 |
 | Android 工程 | 存在 | 上游包含 `android/app` 和 `android/lib`；后者提供 `org.libreoffice.androidlib`。 |
 | 设备兼容性 | 静态满足 | 上游 Android 配置 `minSdk 26`、`targetSdk 35`，并产出 `arm64-v8a`；目标设备为 Android 12 / API 31、arm64-v8a。 |
 | 官方发布物 | 存在 | 官方 F-Droid 索引列出 `com.collabora.libreoffice` 的 arm64 `25.04.9.1`，`minSdk 26`，APK 约 278MB，并给出 SHA-256 和签名指纹。 |
@@ -16,10 +16,10 @@
 ## 关键工程约束
 
 1. Collabora 的 `android/lib` 依赖由 LibreOffice/Collabora 原生引擎生成的 `.so`、配置和资源；不能只复制 Java/Kotlin 层或当作 Maven AAR 接入。
-2. 官方构建说明要求在 **Linux** 上先编译 Android 原生 engine，再以 `--enable-androidapp --with-lo-builddir=... --with-android-abi=arm64-v8a` 构建 Android 壳。当前 macOS 主机不应伪造“源码构建已通过”。当前 Gerrit `main` 的实际配置检查已要求 NDK `>= 27`，因此 CI 固定 Android r27 LTS `27.3.13750724`，不继续沿用页面中的旧 r23 示例。
+2. 官方构建说明要求在 **Linux** 上先编译 Android 原生 engine，再以 `--enable-androidapp --with-lo-builddir=... --with-android-abi=arm64-v8a` 构建 Android 壳。当前 macOS 主机不应伪造“源码构建已通过”。当前 engine 配置已要求 NDK `>= 27`，因此 CI 固定 Android r27 LTS `27.3.13750724`，不继续沿用页面中的旧 r23 示例。
 3. GitHub 镜像用于发现、版本固定和 Android 壳审查；官方说明目前把完整 engine 构建放在 Collabora Gerrit 单仓库。正式构建必须固定 Gerrit 的可复现 commit/镜像，而不是只依赖 GitHub 页面。
 4. 官方 F-Droid 元数据显示发布包为 MPL-2.0；原生 engine 与传递依赖仍须在发布前做完整许可证/SBOM 扫描，不能据此直接下最终法律结论。
-5. GitHub Linux 预检已在 Gerrit 源码 `af7c4b942004777653ddcaa1e79a84dc6c4de5b3` 通过 NDK r27 检查；其下一失败点为 BUILD-side configure（`engine/CONF-FOR-BUILD/config.log`），尚未开始 `make` 或宣称 APK 可用。
+5. 先前对 Gerrit `main` 的预检在 BUILD-side configure 失败，公开诊断显示 ccache 参数、`uuid` 和 `libexecinfo` 依赖问题；它不能证明 Android mobile 发布源码不可构建。CI 已切换到官方 mobile release SHA，保留 r27，并采用上游 Android 示例中的 `--disable-ccache`。mobile 预检尚未通过，未开始 `make` 或宣称 APK 可用。
 
 ## 推荐集成形态
 
