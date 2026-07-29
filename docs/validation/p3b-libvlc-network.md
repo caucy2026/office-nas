@@ -7,14 +7,14 @@
 
 - 固定依赖 `org.videolan.android:libvlc-all:3.6.5`；Debug APK 只打包 `arm64-v8a`，避免无关 ABI 使设备端安装包膨胀。
 - `LibVlcMediaEngine` 使用硬解优先、网络缓存和 LibVLC 自带 `VLCVideoLayout`。初版手写 `SurfaceView` 在本机可解码但黑屏；已改为 `MediaPlayer.attachViews(...)`，由 LibVLC 管理视频输出面和布局更新。
-- D0 增加“从主屏打开 NAS / 局域网媒体 URI”。接受 `smb`、`nfs`、`upnp`、`http`、`https`、`rtsp`；拒绝不支持的协议、缺失主机和任何 `用户名:密码@` 形式的 URI。
-- 只将无凭据 URI、来源协议、显示名保存到工作区；NAS 浏览、账户和凭据存储尚未实现，后续必须使用 Android Keystore。
+- D0 增加“从主屏打开 NAS / 局域网媒体 URI”。接受 `smb`、`nfs`、`upnp`、`http`、`https`、`rtsp`；拒绝不支持的协议、缺失主机、任何 `用户名:密码@` URI、敏感 query（如 `token`、`signature`、`credential`）及 fragment。
+- 只将无凭据 URI、来源协议、显示名保存到工作区和 P4 引用；NAS 浏览、账户和凭据存储尚未实现，后续必须使用 Android Keystore。
 
 ## 自动化验证
 
 | 检查 | 结果 | 证据 |
 | --- | --- | --- |
-| URI 解析单测 | 通过 | `:features:media:testDebugUnitTest` 的 3 条用例覆盖 SMB 正常路径、HTTP(S) 显示名、非法协议和凭据拒绝。 |
+| URI 解析单测 | 通过 | `:features:media:testDebugUnitTest` 覆盖 SMB 正常路径、HTTP(S) 显示名、非法协议、userinfo、token/signature query、fragment 拒绝和普通非敏感 query 保留。 |
 | APK 构建 | 通过 | `./gradlew :features:media:testDebugUnitTest :app:assembleDebug`，共 80 个任务。 |
 | D0 → D2 路由 | 通过 | 真机日志：`Launching MediaActivity on display=2`、`MediaActivity ready on display=2`。 |
 | HLS 真机出画 | 通过 | D0 输入公开测试地址 `https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`，D2 状态显示 `PLAYING`，Display 2 截图确认视频帧已显示。 |

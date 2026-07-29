@@ -30,5 +30,18 @@ class NetworkMediaUriTest {
         assertFailsWith<IllegalArgumentException> {
             NetworkMediaUri.parse("smb://user:secret@nas.local/share/movie.mp4").getOrThrow()
         }
+        assertFailsWith<IllegalArgumentException> {
+            NetworkMediaUri.parse("https://stream.example.test/vod.m3u8?access_token=secret").getOrThrow()
+        }
+        assertFailsWith<IllegalArgumentException> {
+            NetworkMediaUri.parse("https://stream.example.test/vod.m3u8#token=secret").getOrThrow()
+        }
+    }
+
+    @Test
+    fun keepsOrdinaryNonSensitiveQueryParameters() {
+        val source = NetworkMediaUri.parse("https://stream.example.test/vod.m3u8?quality=high").getOrThrow()
+
+        assertEquals("https://stream.example.test/vod.m3u8?quality=high", source.uri)
     }
 }
