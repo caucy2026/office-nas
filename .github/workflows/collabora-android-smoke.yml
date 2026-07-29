@@ -139,7 +139,8 @@ jobs:
             if [[ -z "$diagnostic" ]]; then
               diagnostic="$(tail -n 1 "$log" || true)"
             fi
-          else
+          fi
+          if [[ -z "$diagnostic" ]]; then
             diagnostic="engine/config.log was not created; failure happened before configure completed."
           fi
           diagnostic="$(printf '%s' "$diagnostic" | tr '\r\n' ' ' | sed 's/::/: :/g')"
